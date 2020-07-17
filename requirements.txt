@@ -1,0 +1,9 @@
+dataclasses-json
+
+# test
+pytest
+
+# formatting
+black
+isort
+mypy
