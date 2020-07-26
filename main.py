@@ -4,7 +4,7 @@ import subprocess
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from enum import Enum
-from typing import List, Optional, Union, Dict
+from typing import Dict, List, Union
 
 from dataclasses_json import dataclass_json
 
@@ -25,8 +25,13 @@ class WorkBlock:
         if self.start == "" or self.stop == "":
             return 0
         return (
-            (_today_with_time(self.stop) - _today_with_time(self.start)).total_seconds()
-        ) // 60
+            int(
+                (
+                    _today_with_time(self.stop) - _today_with_time(self.start)
+                ).total_seconds()
+            )
+            // 60
+        )
 
 
 @dataclass_json
