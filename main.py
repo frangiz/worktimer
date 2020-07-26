@@ -22,16 +22,16 @@ class WorkBlock:
 
     @property
     def worked_time(self) -> int:
-        if self.start == "" or self.stop == "":
+        if not self.started() or not self.stopped():
             return 0
-        return (
-            int(
-                (
-                    _today_with_time(self.stop) - _today_with_time(self.start)
-                ).total_seconds()
-            )
-            // 60
-        )
+        diff = _today_with_time(self.stop) - _today_with_time(self.start)
+        return int(diff.total_seconds()) // 60
+
+    def started(self) -> bool:
+        return self.start != ""
+
+    def stopped(self) -> bool:
+        return self.stop != ""
 
 
 @dataclass_json
@@ -168,9 +168,17 @@ def _print_estimated_endtime_for_today(
 
 def start(start_time: datetime) -> None:
     ts = load_timesheet()
+    last_wb = ts.today.last_work_block
+    if last_wb.started() and not last_wb.stopped():
+        print("Workblock already started, stop it before starting another one")
+        return
+
+    if last_wb.stopped():
+        ts.today.work_blocks.append(WorkBlock(start=start_time.time().isoformat()))
+    else:
+        last_wb.start = start_time.time().isoformat()
 
     print(f"Starting at {start_time}")
-    ts.today.work_blocks.append(WorkBlock(start=start_time.time().isoformat()))
     save_timesheet(ts)
     _print_estimated_endtime_for_today(ts.today.work_blocks)
 

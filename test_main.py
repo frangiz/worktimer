@@ -80,3 +80,17 @@ def test_multiple_start_and_end(capsys) -> None:
     handle_command("stop 19:35")
     ts = load_timesheet()
     assert ts.today.flex_minutes == 5  # Should have 5 min as flex
+
+
+def test_workblock_that_is_already_started_cannot_be_started_again(capsys) -> None:
+    handle_command("start 08:00")
+    ts = load_timesheet()
+
+    handle_command("start 08:01")
+
+    assert ts == load_timesheet()
+    assert len(ts.today.work_blocks) == 1
+    captured = capsys.readouterr()
+    assert (
+        "Workblock already started, stop it before starting another one" in captured.out
+    )
