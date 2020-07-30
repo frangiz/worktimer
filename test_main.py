@@ -82,6 +82,7 @@ def test_multiple_start_and_end(capsys) -> None:
     assert ts.today.flex_minutes == 5  # Should have 5 min as flex
 
 
+# Change to be similar to stop, requiring explicit time to overwrite start?
 def test_workblock_that_is_already_started_cannot_be_started_again(capsys) -> None:
     handle_command("start 08:00")
     ts = load_timesheet()
@@ -94,3 +95,43 @@ def test_workblock_that_is_already_started_cannot_be_started_again(capsys) -> No
     assert (
         "Workblock already started, stop it before starting another one" in captured.out
     )
+
+
+def test_lunch_fails_if_day_is_not_started(capsys) -> None:
+    handle_command("lunch")
+    assert load_timesheet().today.lunch == 0
+    captured = capsys.readouterr()
+    assert "Could not find today in timesheet, did you start the day?" in captured.out
+
+    handle_command("start")
+    handle_command("lunch")
+    assert load_timesheet().today.lunch == 30
+
+
+def test_running_lunch_twice_will_not_overwrite_first_lunch() -> None:
+    handle_command("start")
+    handle_command("lunch")
+    assert load_timesheet().today.lunch == 30
+    handle_command("lunch 25")
+    assert load_timesheet().today.lunch == 30
+
+
+def test_stop_fails_if_last_workblock_is_not_started(capsys) -> None:
+    handle_command("stop")
+    assert not load_timesheet().today.last_work_block.stopped()
+    captured = capsys.readouterr()
+    assert "Could not stop workblock, is your last workblock started?" in captured.out
+
+    handle_command("start 08:05")
+    handle_command("stop 08:10")
+    assert load_timesheet().today.last_work_block.stop == "08:10:00"
+    assert load_timesheet().today.last_work_block.stopped()
+
+
+def test_running_stop_twice_will_not_overwrite_last_stop() -> None:
+    handle_command("start 08:01")
+    handle_command("stop 08:03")
+    assert load_timesheet().today.last_work_block.stop == "08:03:00"
+
+    handle_command("stop 08:05")
+    assert load_timesheet().today.last_work_block.stop == "08:03:00"

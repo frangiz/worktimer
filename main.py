@@ -185,6 +185,11 @@ def start(start_time: datetime) -> None:
 
 def stop(stop_time: datetime) -> None:
     ts = load_timesheet()
+    if not ts.today.last_work_block.started():
+        print("Could not stop workblock, is your last workblock started?")
+        return
+    if ts.today.last_work_block.stopped():
+        return
     print(f"Stopping at {stop_time}")
 
     ts.today.last_work_block.stop = stop_time.time().isoformat()
@@ -197,13 +202,13 @@ def stop(stop_time: datetime) -> None:
 
 def lunch(lunch_mins: int) -> None:
     ts = load_timesheet()
-    # if today not in ts.days:
-    # print(f"Could not find today {today} in timesheet, did you start the day?")
-    # return None
-    # if ts.days[today].end != "":
-    # print(f"Could not change lunch today, day already ended.")
-    # return None
-    # start = _today_with_time(ts.today.last_work_block.start)
+
+    if len(ts.today.work_blocks) == 0 or not ts.today.last_work_block.started():
+        print("Could not find today in timesheet, did you start the day?")
+        return
+    if ts.today.lunch != 0:
+        return
+
     _print_estimated_endtime_for_today(ts.today.work_blocks, lunch_mins)
 
     ts.today.lunch = lunch_mins
