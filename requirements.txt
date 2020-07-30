@@ -2,6 +2,7 @@ dataclasses-json
 
 # test
 pytest
+tox
 
 # formatting
 black
