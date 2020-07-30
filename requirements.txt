@@ -1,9 +1,9 @@
-dataclasses-json
+dataclasses-json==0.5.1
 
 # test
-pytest
+pytest==5.4.3
 
 # formatting
-black
-isort
-mypy
+black==19.10b0
+isort==5.1.4
+mypy==0.782
