@@ -30,6 +30,9 @@ jobs:
     - name: Lint with Black
       run: |
         black --check --diff main.py test_main.py
+    - name: Run check with isort
+      run: |
+        isort --check-only --profile black main.py test_main.py
     - name: Run mypy
       run: |
         mypy main.py test_main.py
