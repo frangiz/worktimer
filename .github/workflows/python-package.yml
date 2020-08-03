@@ -33,6 +33,9 @@ jobs:
     - name: Run check with isort
       run: |
         isort --check-only --profile black main.py test_main.py
+    - name: Run autoflake and check for unused imports or variables
+      run: |
+        autoflake --check main.py test_main.py
     - name: Run mypy
       run: |
         mypy main.py test_main.py
