@@ -1,4 +1,4 @@
-from os import path, remove
+from pathlib import Path
 from typing import Any
 
 import pytest  # type: ignore
@@ -8,12 +8,14 @@ from main import Timesheet, handle_command, load_timesheet, save_timesheet
 
 
 def setup_module(module: Any) -> None:
+    main.DATAFILE_DIR = Path("test_files")
+    main.DATAFILE_DIR.mkdir(exist_ok=True)
     main.DATAFILE = "test_" + main.DATAFILE
 
 
 def setup_function(func: Any) -> None:
-    if path.exists(main.DATAFILE):
-        remove(main.DATAFILE)
+    if main.DATAFILE_DIR.joinpath(main.DATAFILE).is_file():
+        main.DATAFILE_DIR.joinpath(main.DATAFILE).unlink()
 
 
 def teardown_function(func: Any) -> None:
@@ -82,7 +84,6 @@ def test_multiple_start_and_end(capsys) -> None:
     assert ts.today.flex_minutes == 5  # Should have 5 min as flex
 
 
-# Change to be similar to stop, requiring explicit time to overwrite start?
 def test_workblock_that_is_already_started_cannot_be_started_again(capsys) -> None:
     handle_command("start 08:00")
     ts = load_timesheet()

@@ -1,9 +1,9 @@
 import json
-import os
 import subprocess
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from enum import Enum
+from pathlib import Path
 from typing import Dict, List, Union
 
 from dataclasses_json import dataclass_json
@@ -11,6 +11,7 @@ from dataclasses_json import dataclass_json
 WORKHOURS_ONE_DAY = 8
 NOTEPADPP_PATH = r"C:\Program Files (x86)\Notepad++\notepad++.exe"
 
+DATAFILE_DIR = Path(Path.home(), ".worktimer")
 DATAFILE = f"{datetime.today().year}-{datetime.today().month:02d}-timesheet.json"
 
 
@@ -82,15 +83,15 @@ class ViewSpans(Enum):
 
 
 def load_timesheet() -> Timesheet:
-    if not os.path.exists(DATAFILE):
+    if not DATAFILE_DIR.joinpath(DATAFILE).is_file():
         empty_ts = Timesheet()
         save_timesheet(empty_ts)
-    with open(DATAFILE, "r", encoding="utf-8") as f:
+    with open(DATAFILE_DIR.joinpath(DATAFILE), "r", encoding="utf-8") as f:
         return Timesheet.from_dict(json.load(f))  # type: ignore
 
 
 def save_timesheet(ts: Timesheet) -> None:
-    with open(DATAFILE, "w+", encoding="utf-8") as f:
+    with open(DATAFILE_DIR.joinpath(DATAFILE), "w+", encoding="utf-8") as f:
         json.dump(ts.to_dict(), f, ensure_ascii=False, indent=4, sort_keys=True)  # type: ignore
 
 
@@ -218,7 +219,7 @@ def lunch(lunch_mins: int) -> None:
 
 
 def edit() -> None:
-    subprocess.call([NOTEPADPP_PATH, DATAFILE])
+    subprocess.call([NOTEPADPP_PATH, DATAFILE_DIR.joinpath(DATAFILE)])
 
 
 def view(viewSpan: ViewSpans = ViewSpans.TODAY) -> None:
@@ -237,6 +238,8 @@ def print_menu():
 
 
 def run():
+    DATAFILE_DIR.mkdir(exist_ok=True)
+
     ts = load_timesheet()
     print(f"Current flex {ts.total_flex} mins")
     if len(ts.today.work_blocks) > 0:

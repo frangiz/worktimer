@@ -6,4 +6,4 @@ __pycache__/
 .tox/
 .venv/
 htmlcov/
-test_*.json
+test_files/
