@@ -4,8 +4,13 @@ from typing import Any
 import pytest  # type: ignore
 
 import main
-from main import (Timesheet, calc_total_flex, handle_command, load_timesheet,
-                  save_timesheet)
+from main import (
+    Timesheet,
+    calc_total_flex,
+    handle_command,
+    load_timesheet,
+    save_timesheet,
+)
 
 
 def setup_module(module: Any) -> None:
