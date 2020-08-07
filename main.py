@@ -62,7 +62,7 @@ class Timesheet:
     days: Dict[str, Day] = field(default_factory=lambda: {})
 
     @property
-    def total_flex(self) -> int:
+    def monthly_flex(self) -> int:
         return sum(d.flex_minutes for d in self.days.values())
 
     @property
@@ -82,11 +82,11 @@ class ViewSpans(Enum):
     TODAY = 1
 
 
-def load_timesheet() -> Timesheet:
-    if not DATAFILE_DIR.joinpath(DATAFILE).is_file():
+def load_timesheet(datafile: str = DATAFILE) -> Timesheet:
+    if not DATAFILE_DIR.joinpath(datafile).is_file():
         empty_ts = Timesheet()
         save_timesheet(empty_ts)
-    with open(DATAFILE_DIR.joinpath(DATAFILE), "r", encoding="utf-8") as f:
+    with open(DATAFILE_DIR.joinpath(datafile), "r", encoding="utf-8") as f:
         return Timesheet.from_dict(json.load(f))  # type: ignore
 
 
@@ -228,6 +228,13 @@ def view(viewSpan: ViewSpans = ViewSpans.TODAY) -> None:
         print(ts.today)
 
 
+def calc_total_flex() -> int:
+    flex = 0
+    for f in DATAFILE_DIR.glob("*-timesheet.json"):
+        flex += load_timesheet(f.name).monthly_flex
+    return flex
+
+
 def print_menu():
     print("-- comamnds --")
     print("start [hh:mm]")
@@ -241,7 +248,7 @@ def run():
     DATAFILE_DIR.mkdir(exist_ok=True)
 
     ts = load_timesheet()
-    print(f"Current flex {ts.total_flex} mins")
+    print(f"Total flex {calc_total_flex()} mins")
     if len(ts.today.work_blocks) > 0:
         print(f"You started last work block @ {ts.today.last_work_block.start}")
         _print_estimated_endtime_for_today(ts.today.work_blocks, 30)
