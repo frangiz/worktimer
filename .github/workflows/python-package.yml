@@ -29,16 +29,16 @@ jobs:
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Lint with Black
       run: |
-        black --check --diff main.py test_main.py
+        black --check --diff main.py test_main.py test_main_bugfixes.py
     - name: Run check with isort
       run: |
-        isort --check-only --profile black main.py test_main.py
+        isort --check-only --profile black main.py test_main.py test_main_bugfixes.py
     - name: Run autoflake and check for unused imports or variables
       run: |
-        autoflake --check main.py test_main.py
+        autoflake --check main.py test_main.py test_main_bugfixes.py
     - name: Run mypy
       run: |
-        mypy main.py test_main.py
+        mypy main.py test_main.py test_main_bugfixes.py
     - name: Test with pytest
       run: |
         pytest
