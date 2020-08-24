@@ -195,9 +195,13 @@ def stop(stop_time: datetime) -> None:
 
     ts.today.last_work_block.stop = stop_time.time().isoformat()
     ts.today.recalc_flex()
-    print(
-        f"Flex for today: {ts.today.flex_minutes // 60 } hours {ts.today.flex_minutes % 60} mins"
-    )
+
+    flex_hours = abs(ts.today.flex_minutes) // 60
+    flex_mins = abs(ts.today.flex_minutes) % 60
+    if ts.today.flex_minutes >= 0:
+        print(f"Flex for today: {flex_hours} hours {flex_mins} mins")
+    else:
+        print(f"Flex for today is negative: {flex_hours} hours {flex_mins} mins")
     save_timesheet(ts)
 
 
