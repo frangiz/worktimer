@@ -15,6 +15,10 @@ DATAFILE_DIR = Path(Path.home(), ".worktimer")
 DATAFILE = f"{datetime.today().year}-{datetime.today().month:02d}-timesheet.json"
 
 
+def _today_iso_format() -> str:
+    return date.today().isoformat()
+
+
 @dataclass_json
 @dataclass
 class WorkBlock:
@@ -38,6 +42,7 @@ class WorkBlock:
 @dataclass_json
 @dataclass
 class Day:
+    date_str: str = ""
     lunch: int = 0
     flex_minutes: int = 0
     work_blocks: List[WorkBlock] = field(default_factory=lambda: [])
@@ -49,11 +54,25 @@ class Day:
         return self.work_blocks[-1]
 
     def recalc_flex(self) -> None:
-        self.flex_minutes = (
-            sum(wt.worked_time for wt in self.work_blocks)
-            - (WORKHOURS_ONE_DAY * 60)
-            - self.lunch
-        )
+        expected_worktime_in_mins = WORKHOURS_ONE_DAY * 60
+        weekday = datetime.strptime(self.date_str, "%Y-%m-%d").isoweekday()
+        # Check if weekend
+        if weekday in [6, 7]:
+            expected_worktime_in_mins = 0
+        if len(self.work_blocks) == 1 and not self.last_work_block.stopped():
+            self.flex_minutes = 0
+        else:
+            self.flex_minutes = (
+                sum(wt.worked_time for wt in self.work_blocks)
+                - expected_worktime_in_mins
+                - self.lunch
+            )
+
+    @staticmethod
+    def from_date_str(date_str: str) -> "Day":
+        d = Day()
+        d.date_str = date_str
+        return d
 
 
 @dataclass_json
@@ -69,12 +88,12 @@ class Timesheet:
     def today(self) -> Day:
         today = _today_iso_format()
         if today not in self.days:
-            self.days[today] = Day()
+            self.days[today] = Day.from_date_str(today)
         return self.days[today]
 
     def get_day(self, key: str) -> Day:
         if key not in self.days:
-            self.days[key] = Day()
+            self.days[key] = Day.from_date_str(key)
         return self.days[key]
 
 
@@ -82,16 +101,27 @@ class ViewSpans(Enum):
     TODAY = 1
 
 
-def load_timesheet(datafile: str = DATAFILE) -> Timesheet:
+class RecalcAction(Enum):
+    FLEX = 1
+
+
+def load_timesheet(datafile: str = None) -> Timesheet:
+    if datafile is None:
+        datafile = DATAFILE
     if not DATAFILE_DIR.joinpath(datafile).is_file():
         empty_ts = Timesheet()
         save_timesheet(empty_ts)
     with open(DATAFILE_DIR.joinpath(datafile), "r", encoding="utf-8") as f:
-        return Timesheet.from_dict(json.load(f))  # type: ignore
+        ts = Timesheet.from_dict(json.load(f))  # type: ignore
+        for k, v in ts.days.items():
+            v.date_str = k
+        return ts
 
 
-def save_timesheet(ts: Timesheet) -> None:
-    with open(DATAFILE_DIR.joinpath(DATAFILE), "w+", encoding="utf-8") as f:
+def save_timesheet(ts: Timesheet, datafile: str = None) -> None:
+    if datafile is None:
+        datafile = DATAFILE
+    with open(DATAFILE_DIR.joinpath(datafile), "w+", encoding="utf-8") as f:
         json.dump(ts.to_dict(), f, ensure_ascii=False, indent=4, sort_keys=True)  # type: ignore
 
 
@@ -127,6 +157,11 @@ def handle_command(cmd: str) -> None:
             view(ViewSpans[params[0]])
         else:
             view()
+    elif cmd == "recalc":
+        if len(params) > 0:
+            recalc(RecalcAction[params[0]])
+        else:
+            recalc()
     elif cmd == "help":
         print("help you say?")
 
@@ -145,10 +180,6 @@ def _today_with_time(time: Union[str, time]) -> datetime:
             date.today().isoformat() + "T" + str(time), "%Y-%m-%dT%H:%M:%S"
         )
     raise Exception("Not implemented yet")
-
-
-def _today_iso_format() -> str:
-    return date.today().isoformat()
 
 
 def _print_estimated_endtime_for_today(
@@ -232,6 +263,15 @@ def view(viewSpan: ViewSpans = ViewSpans.TODAY) -> None:
         print(ts.today)
 
 
+def recalc(action: RecalcAction = RecalcAction.FLEX) -> None:
+    if action == RecalcAction.FLEX:
+        for f in DATAFILE_DIR.glob("*-timesheet.json"):
+            ts = load_timesheet(f.name)
+            for _, v in ts.days.items():
+                v.recalc_flex()
+            save_timesheet(ts, f.name)
+
+
 def calc_total_flex() -> int:
     flex = 0
     for f in DATAFILE_DIR.glob("*-timesheet.json"):
@@ -246,6 +286,7 @@ def print_menu():
     print("lunch [n]")
     print("edit")
     print("view [TODAY]")
+    print("recalc [FLEX]")
 
 
 def run():
