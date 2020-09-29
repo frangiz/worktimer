@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest  # type: ignore
+from freezegun import freeze_time  # type: ignore
 
 import main
 from main import (
@@ -156,3 +157,13 @@ def test_total_flextime() -> None:
     save_timesheet(ts)
 
     assert calc_total_flex() == 5
+
+
+def test_flextime_correct_during_weekend() -> None:
+    main.DATAFILE = "2020-09-timesheet.json"
+    with freeze_time("2020-09-26"):  # A Saturday
+        handle_command("start 08:00")
+        handle_command("stop 09:02")
+
+        assert load_timesheet().today.flex_minutes == 62
+        assert calc_total_flex() == 62
