@@ -2,6 +2,7 @@ dataclasses-json==0.5.1
 
 # test
 pytest==5.4.3
+pytest-cov=2.10.1
 freezegun==1.0.0
 
 # formatting
