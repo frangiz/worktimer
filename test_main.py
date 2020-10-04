@@ -31,15 +31,18 @@ def teardown_function(func: Any) -> None:
 
 @pytest.mark.parametrize("stop_time,flex", [("16:30", 0), ("16:32", 2), ("16:27", -3)])
 def test_flex(capsys, stop_time, flex) -> None:
-    handle_command("start 08:00")
-    handle_command("lunch")
-    handle_command("stop " + stop_time)
+    with freeze_time("2020-09-23"):  # A Wednesday
+        handle_command("start 08:00")
+        handle_command("lunch")
+        handle_command("stop " + stop_time)
 
-    ts = load_timesheet()
-    assert ts.today.flex_minutes == flex
+        ts = load_timesheet()
+        assert ts.today.flex_minutes == flex
 
-    captured = capsys.readouterr()
-    assert "Estimated end time for today with 30 min lunch is 16:30:00" in captured.out
+        captured = capsys.readouterr()
+        assert (
+            "Estimated end time for today with 30 min lunch is 16:30:00" in captured.out
+        )
 
 
 def test_monthly_flextime() -> None:
@@ -58,37 +61,46 @@ def test_monthly_flextime() -> None:
 
 # Note that no lunch was taken in this test.
 def test_multiple_start_and_end(capsys) -> None:
-    # Working 30 min first section
-    handle_command("start 08:30")
-    captured = capsys.readouterr()
-    assert "Estimated end time for today with 30 min lunch is 17:00:00" in captured.out
-    handle_command("stop 09:00")
-    ts = load_timesheet()
-    assert ts.today.flex_minutes == -7 * 60 - 30  # Should have -7h 30m as flex
+    with freeze_time("2020-09-25"):  # A Friday
+        # Working 30 min first section
+        handle_command("start 08:30")
+        captured = capsys.readouterr()
+        assert (
+            "Estimated end time for today with 30 min lunch is 17:00:00" in captured.out
+        )
+        handle_command("stop 09:00")
+        ts = load_timesheet()
+        assert ts.today.flex_minutes == -7 * 60 - 30  # Should have -7h 30m as flex
 
-    # Working 1h 30 min more
-    handle_command("start 10:30")
-    captured = capsys.readouterr()
-    assert "Estimated end time for today with 30 min lunch is 18:30:00" in captured.out
-    handle_command("stop 12:00")
-    ts = load_timesheet()
-    assert ts.today.flex_minutes == -6 * 60  # Should have -6h as flex
+        # Working 1h 30 min more
+        handle_command("start 10:30")
+        captured = capsys.readouterr()
+        assert (
+            "Estimated end time for today with 30 min lunch is 18:30:00" in captured.out
+        )
+        handle_command("stop 12:00")
+        ts = load_timesheet()
+        assert ts.today.flex_minutes == -6 * 60  # Should have -6h as flex
 
-    # Filling up to the 8 hours
-    handle_command("start 13:00")
-    captured = capsys.readouterr()
-    assert "Estimated end time for today with 30 min lunch is 19:30:00" in captured.out
-    handle_command("stop 19:00")
-    ts = load_timesheet()
-    assert ts.today.flex_minutes == 0  # Should have 0 min as flex
+        # Filling up to the 8 hours
+        handle_command("start 13:00")
+        captured = capsys.readouterr()
+        assert (
+            "Estimated end time for today with 30 min lunch is 19:30:00" in captured.out
+        )
+        handle_command("stop 19:00")
+        ts = load_timesheet()
+        assert ts.today.flex_minutes == 0  # Should have 0 min as flex
 
-    # Working a few more minutes
-    handle_command("start 19:30")
-    captured = capsys.readouterr()
-    assert "Estimated end time for today with 30 min lunch is 20:00:00" in captured.out
-    handle_command("stop 19:35")
-    ts = load_timesheet()
-    assert ts.today.flex_minutes == 5  # Should have 5 min as flex
+        # Working a few more minutes
+        handle_command("start 19:30")
+        captured = capsys.readouterr()
+        assert (
+            "Estimated end time for today with 30 min lunch is 20:00:00" in captured.out
+        )
+        handle_command("stop 19:35")
+        ts = load_timesheet()
+        assert ts.today.flex_minutes == 5  # Should have 5 min as flex
 
 
 def test_workblock_that_is_already_started_cannot_be_started_again(capsys) -> None:
