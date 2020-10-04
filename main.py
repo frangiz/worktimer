@@ -96,6 +96,9 @@ class Timesheet:
             self.days[key] = Day.from_date_str(key)
         return self.days[key]
 
+    def to_dict(self) -> Dict:
+        return {}
+
 
 class ViewSpans(Enum):
     TODAY = 1
@@ -122,7 +125,7 @@ def save_timesheet(ts: Timesheet, datafile: str = None) -> None:
     if datafile is None:
         datafile = DATAFILE
     with open(DATAFILE_DIR.joinpath(datafile), "w+", encoding="utf-8") as f:
-        json.dump(ts.to_dict(), f, ensure_ascii=False, indent=4, sort_keys=True)  # type: ignore
+        json.dump(ts.to_dict(), f, ensure_ascii=False, indent=4, sort_keys=True)
 
 
 def handle_command(cmd: str) -> None:
