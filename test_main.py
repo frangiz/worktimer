@@ -11,6 +11,7 @@ from main import (
     handle_command,
     load_timesheet,
     save_timesheet,
+    total_flex_as_str,
 )
 
 
@@ -179,3 +180,47 @@ def test_flextime_correct_during_weekend() -> None:
 
         assert load_timesheet().today.flex_minutes == 62
         assert calc_total_flex() == 62
+
+
+def test_total_flex_as_str_less_than_one_hour() -> None:
+    ts = Timesheet()
+    ts.get_day("2020-07-01").flex_minutes = 2
+    main.DATAFILE = "2020-07-timesheet.json"
+    save_timesheet(ts)
+
+    assert total_flex_as_str() == "2min"
+
+
+def test_total_flex_as_str_exactly_one_hour() -> None:
+    ts = Timesheet()
+    ts.get_day("2020-07-01").flex_minutes = 60
+    main.DATAFILE = "2020-07-timesheet.json"
+    save_timesheet(ts)
+
+    assert total_flex_as_str() == "1h 0min"
+
+
+def test_total_flex_as_str_more_than_one_hour() -> None:
+    ts = Timesheet()
+    ts.get_day("2020-07-01").flex_minutes = 63
+    main.DATAFILE = "2020-07-timesheet.json"
+    save_timesheet(ts)
+
+    assert total_flex_as_str() == "1h 3min"
+
+
+def test_start_no_arguments() -> None:
+    main.DATAFILE = "2020-09-timesheet.json"
+    with freeze_time("2020-09-26 08:03"):  # A Saturday
+        handle_command("start")
+
+        assert load_timesheet().today.last_work_block.start == "08:03:00"
+
+
+def test_stop_no_arguments() -> None:
+    main.DATAFILE = "2020-09-timesheet.json"
+    with freeze_time("2020-09-26 08:07"):  # A Saturday
+        handle_command("start 08:00")
+        handle_command("stop")
+
+        assert load_timesheet().today.last_work_block.stop == "08:07:00"

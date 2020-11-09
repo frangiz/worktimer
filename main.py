@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Callable, Dict, List, Union
 
 from dataclasses_json import dataclass_json
 
@@ -128,26 +128,21 @@ def save_timesheet(ts: Timesheet, datafile: str = None) -> None:
         json.dump(ts.to_dict(), f, ensure_ascii=False, indent=4, sort_keys=True)
 
 
+def _time_cmd(cmd: Callable[[datetime], None], params: List[str]) -> None:
+    if len(params) > 0:
+        h, m = map(int, params[0].split(":"))
+        time = datetime.today().replace(hour=h, minute=m, second=0, microsecond=0)
+        cmd(time)
+    else:
+        cmd(datetime.now().replace(second=0, microsecond=0))
+
+
 def handle_command(cmd: str) -> None:
     cmd, *params = cmd.split()
     if cmd == "start":
-        if len(params) > 0:
-            h, m = params[0].split(":")
-            start_time = datetime.today().replace(
-                hour=int(h), minute=int(m), second=0, microsecond=0
-            )
-            start(start_time)
-        else:
-            start(_get_start_time())
+        _time_cmd(start, params)
     elif cmd == "stop":
-        if len(params) > 0:
-            h, m = params[0].split(":")
-            stop_time = datetime.today().replace(
-                hour=int(h), minute=int(m), second=0, microsecond=0
-            )
-            stop(stop_time)
-        else:
-            stop(_get_stop_time())
+        _time_cmd(stop, params)
     elif cmd == "lunch":
         if len(params) > 0:
             lunch(int(params[0]))
@@ -167,14 +162,6 @@ def handle_command(cmd: str) -> None:
             recalc()
     elif cmd == "help":
         print("help you say?")
-
-
-def _get_start_time() -> datetime:
-    return datetime.now().replace(second=0, microsecond=0)
-
-
-def _get_stop_time() -> datetime:
-    return datetime.now().replace(second=0, microsecond=0)
 
 
 def _today_with_time(time: Union[str, time]) -> datetime:
@@ -282,6 +269,13 @@ def calc_total_flex() -> int:
     return flex
 
 
+def total_flex_as_str() -> str:
+    flex_mins = calc_total_flex()
+    if flex_mins < 60:
+        return f"{flex_mins}min"
+    return f"{flex_mins // 60}h {flex_mins % 60}min"
+
+
 def print_menu():
     print("-- comamnds --")
     print("start [hh:mm]")
@@ -296,7 +290,7 @@ def run():
     DATAFILE_DIR.mkdir(exist_ok=True)
 
     ts = load_timesheet()
-    print(f"Total flex {calc_total_flex()} mins")
+    print(f"Total flex {total_flex_as_str()}")
     if len(ts.today.work_blocks) > 0:
         print(f"You started last work block @ {ts.today.last_work_block.start}")
         _print_estimated_endtime_for_today(ts.today.work_blocks, 30)
