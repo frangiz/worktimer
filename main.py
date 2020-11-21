@@ -202,7 +202,10 @@ def start(start_time: datetime) -> None:
 
     print(f"Starting at {start_time}")
     save_timesheet(ts)
-    _print_estimated_endtime_for_today(ts.today.work_blocks)
+    if ts.today.lunch > 0:
+        _print_estimated_endtime_for_today(ts.today.work_blocks, ts.today.lunch)
+    else:
+        _print_estimated_endtime_for_today(ts.today.work_blocks)
 
 
 def stop(stop_time: datetime) -> None:
