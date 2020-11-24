@@ -277,7 +277,7 @@ def total_flex_as_str() -> str:
 
 
 def print_menu():
-    print("-- comamnds --")
+    print("-- commands --")
     print("start [hh:mm]")
     print("stop [hh:mm]")
     print("lunch [n]")

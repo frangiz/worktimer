@@ -244,5 +244,4 @@ def test_view_today(capsys) -> None:
         "  08:02-14:21 => 6h 19min",
         "  15:01-17:27 => 2h 26min",
     ]
-    expected_str = "\n".join(expected)
-    assert expected_str in captured.out
+    assert "\n".join(expected) in captured.out
