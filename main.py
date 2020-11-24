@@ -253,7 +253,7 @@ def edit() -> None:
 def view(viewSpan: ViewSpans = ViewSpans.TODAY) -> None:
     if viewSpan == ViewSpans.TODAY:
         ts = load_timesheet()
-        print(ts.today)
+        print_days([ts.today])
 
 
 def recalc(action: RecalcAction = RecalcAction.FLEX) -> None:
@@ -273,10 +273,7 @@ def calc_total_flex() -> int:
 
 
 def total_flex_as_str() -> str:
-    flex_mins = calc_total_flex()
-    if flex_mins < 60:
-        return f"{flex_mins}min"
-    return f"{flex_mins // 60}h {flex_mins % 60}min"
+    return fmt_mins(calc_total_flex())
 
 
 def print_menu():
@@ -287,6 +284,28 @@ def print_menu():
     print("edit")
     print("view [TODAY]")
     print("recalc [FLEX]")
+
+
+def print_days(days: List[Day]) -> None:
+    for day in days:
+        header = " | ".join(
+            [
+                day.date_str,
+                f"lunch: {fmt_mins(day.lunch)}",
+                f"daily flex: {fmt_mins(day.flex_minutes)}",
+            ]
+        )
+        print(header)
+        for block in day.work_blocks:
+            print(
+                f"  {block.start[:5]}-{block.stop[:5]} => {fmt_mins(block.worked_time)}"
+            )
+
+
+def fmt_mins(mins: int) -> str:
+    if mins < 60:
+        return f"{mins}min"
+    return f"{mins // 60}h {mins % 60}min"
 
 
 def run():

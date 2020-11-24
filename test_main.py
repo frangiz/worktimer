@@ -224,3 +224,25 @@ def test_stop_no_arguments() -> None:
         handle_command("stop")
 
         assert load_timesheet().today.last_work_block.stop == "08:07:00"
+
+
+def test_view_today(capsys) -> None:
+    main.DATAFILE = "2020-11-timesheet.json"
+    with freeze_time("2020-11-24"):  # A Tuesday
+        handle_command("start 08:02")
+        handle_command("lunch 25")
+        handle_command("stop 14:21")
+        handle_command("start 15:01")
+        handle_command("stop 17:27")
+        capsys.readouterr()
+
+        handle_command("view")  # Act
+    captured = capsys.readouterr()
+
+    expected = [
+        "2020-11-24 | lunch: 25min | daily flex: 20min",
+        "  08:02-14:21 => 6h 19min",
+        "  15:01-17:27 => 2h 26min",
+    ]
+    expected_str = "\n".join(expected)
+    assert expected_str in captured.out
