@@ -296,7 +296,14 @@ def print_days(days: List[Day]) -> None:
             ]
         )
         print(header)
-        for block in day.work_blocks:
+        _print_work_blocks(day.work_blocks)
+
+
+def _print_work_blocks(blocks: List[WorkBlock]) -> None:
+    for block in blocks:
+        if not block.stopped:
+            print(f"  {block.start[:5]}-")
+        else:
             print(
                 f"  {block.start[:5]}-{block.stop[:5]} => {fmt_mins(block.worked_time)}"
             )
