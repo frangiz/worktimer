@@ -301,7 +301,7 @@ def print_days(days: List[Day]) -> None:
 
 def _print_work_blocks(blocks: List[WorkBlock]) -> None:
     for block in blocks:
-        if not block.stopped:
+        if not block.stopped():
             print(f"  {block.start[:5]}-")
         else:
             print(
