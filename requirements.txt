@@ -6,4 +6,4 @@ pytest-cov==2.11.1
 freezegun==1.1.0
 
 # formatting
-pre-commit==2.10.1
+pre-commit==2.11.0
