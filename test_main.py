@@ -287,7 +287,8 @@ def test_timeoff_recalcs_flex() -> None:
 
         handle_command("timeoff 4")
         ts = load_timesheet()
-        assert ts.today.time_off_minutes == 4*60
+        assert ts.today.time_off_minutes == 4 * 60
         assert ts.today.flex_minutes == 2
+
 
 # To test, timeoff 0, timeoff -1, timeoff 8, timeoff > 8

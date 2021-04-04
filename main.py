@@ -166,7 +166,7 @@ def handle_command(cmd: str) -> None:
             recalc()
     elif cmd == "timeoff":
         if len(params) > 0:
-            set_time_off(int(params[0])*60)
+            set_time_off(int(params[0]) * 60)
     elif cmd == "help":
         print("help you say?")
 
