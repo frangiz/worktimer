@@ -261,3 +261,31 @@ def test_view_today_with_workblock_not_ended(capsys) -> None:
         "  08:02-",
     ]
     assert "\n".join(expected) in captured.out
+
+
+def test_timeoff_half_day() -> None:
+    main.DATAFILE = "2021-04-timesheet.json"
+    with freeze_time("2021-04-02"):  # A Friday
+        handle_command("timeoff 4")
+        handle_command("start 08:00")
+        handle_command("stop 12:02")
+
+        ts = load_timesheet()
+        assert ts.today.time_off_minutes == 4 * 60
+        assert ts.today.flex_minutes == 2
+
+
+def test_timeoff_recalcs_flex() -> None:
+    main.DATAFILE = "2021-04-timesheet.json"
+    with freeze_time("2021-04-02"):  # A Friday
+        handle_command("start 08:00")
+        handle_command("stop 12:02")
+
+        ts = load_timesheet()
+        assert ts.today.time_off_minutes == 0
+        assert ts.today.flex_minutes == -4 * 60 + 2
+
+        handle_command("timeoff 4")
+        ts = load_timesheet()
+        assert ts.today.time_off_minutes == 4*60
+        assert ts.today.flex_minutes == 2
