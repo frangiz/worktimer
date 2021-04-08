@@ -275,6 +275,16 @@ def test_timeoff_half_day() -> None:
         assert ts.today.flex_minutes == 2
 
 
+def test_timeoff_full_day() -> None:
+    main.DATAFILE = "2021-04-timesheet.json"
+    with freeze_time("2021-04-02"):  # A Friday
+        handle_command("timeoff 8")
+
+        ts = load_timesheet()
+        assert ts.today.time_off_minutes == 8 * 60
+        assert ts.today.flex_minutes == 0
+
+
 def test_timeoff_recalcs_flex() -> None:
     main.DATAFILE = "2021-04-timesheet.json"
     with freeze_time("2021-04-02"):  # A Friday
@@ -291,4 +301,21 @@ def test_timeoff_recalcs_flex() -> None:
         assert ts.today.flex_minutes == 2
 
 
-# To test, timeoff 0, timeoff -1, timeoff 8, timeoff > 8
+def test_timeoff_negative_input() -> None:
+    main.DATAFILE = "2021-04-timesheet.json"
+    with freeze_time("2021-04-02"):  # A Friday
+        with pytest.raises(
+            ValueError,
+            match="Invalid timeoff value, must be an int between 0 and 8 inclusive.",
+        ):
+            handle_command("timeoff -1")
+
+
+def test_timeoff_more_than_a_workday() -> None:
+    main.DATAFILE = "2021-04-timesheet.json"
+    with freeze_time("2021-04-02"):  # A Friday
+        with pytest.raises(
+            ValueError,
+            match="Invalid timeoff value, must be an int between 0 and 8 inclusive.",
+        ):
+            handle_command("timeoff 9")

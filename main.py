@@ -273,8 +273,11 @@ def recalc(action: RecalcAction = RecalcAction.FLEX) -> None:
 
 
 def set_time_off(time_off_mins: int) -> None:
+    if time_off_mins < 0 or time_off_mins > 8 * 60:
+        raise ValueError(
+            "Invalid timeoff value, must be an int between 0 and 8 inclusive."
+        )
     ts = load_timesheet()
-
     ts.today.time_off_minutes = time_off_mins
     ts.today.recalc_flex()
     save_timesheet(ts)
