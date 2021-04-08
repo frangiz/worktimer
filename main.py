@@ -46,6 +46,7 @@ class Day:
     lunch: int = 0
     flex_minutes: int = 0
     work_blocks: List[WorkBlock] = field(default_factory=lambda: [])
+    time_off_minutes: int = 0
 
     @property
     def last_work_block(self) -> WorkBlock:
@@ -55,10 +56,12 @@ class Day:
 
     def recalc_flex(self) -> None:
         expected_worktime_in_mins = WORKHOURS_ONE_DAY * 60
+        time_off_minutes = self.time_off_minutes
         weekday = datetime.strptime(self.date_str, "%Y-%m-%d").isoweekday()
         # Check if weekend
         if weekday in [6, 7]:
             expected_worktime_in_mins = 0
+            time_off_minutes = 0
         if len(self.work_blocks) == 1 and not self.last_work_block.stopped():
             self.flex_minutes = 0
         else:
@@ -66,6 +69,7 @@ class Day:
                 sum(wt.worked_time for wt in self.work_blocks)
                 - expected_worktime_in_mins
                 - self.lunch
+                + time_off_minutes
             )
 
     @staticmethod
@@ -160,6 +164,9 @@ def handle_command(cmd: str) -> None:
             recalc(RecalcAction[params[0]])
         else:
             recalc()
+    elif cmd == "timeoff":
+        if len(params) > 0:
+            set_time_off(int(params[0]) * 60)
     elif cmd == "help":
         print("help you say?")
 
@@ -265,6 +272,18 @@ def recalc(action: RecalcAction = RecalcAction.FLEX) -> None:
             save_timesheet(ts, f.name)
 
 
+def set_time_off(time_off_mins: int) -> None:
+    if time_off_mins < 0 or time_off_mins > 8 * 60:
+        raise ValueError(
+            "Invalid timeoff value, must be an int between 0 and 8 inclusive."
+        )
+    ts = load_timesheet()
+    ts.today.time_off_minutes = time_off_mins
+    ts.today.recalc_flex()
+    save_timesheet(ts)
+    print(f"Setting timeoff to {fmt_mins(time_off_mins)}")
+
+
 def calc_total_flex() -> int:
     flex = 0
     for f in DATAFILE_DIR.glob("*-timesheet.json"):
@@ -284,6 +303,7 @@ def print_menu():
     print("edit")
     print("view [TODAY]")
     print("recalc [FLEX]")
+    print("timeoff [hh:mm]")
 
 
 def print_days(days: List[Day]) -> None:
