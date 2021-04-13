@@ -303,7 +303,7 @@ def print_menu():
     print("edit")
     print("view [TODAY]")
     print("recalc [FLEX]")
-    print("timeoff [hh:mm]")
+    print("timeoff [hours]")
 
 
 def print_days(days: List[Day]) -> None:
