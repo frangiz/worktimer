@@ -330,9 +330,11 @@ def _print_work_blocks(blocks: List[WorkBlock]) -> None:
 
 
 def fmt_mins(mins: int) -> str:
+    sign = "" if mins >= 0 else "-"
+    mins = abs(mins)
     if mins < 60:
-        return f"{mins}min"
-    return f"{mins // 60}h {mins % 60}min"
+        return f"{sign}{mins}min"
+    return f"{sign}{mins // 60}h {mins % 60}min"
 
 
 def run():
