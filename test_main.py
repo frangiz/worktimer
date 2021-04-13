@@ -8,6 +8,7 @@ import main
 from main import (
     Timesheet,
     calc_total_flex,
+    fmt_mins,
     handle_command,
     load_timesheet,
     save_timesheet,
@@ -319,3 +320,11 @@ def test_timeoff_more_than_a_workday() -> None:
             match="Invalid timeoff value, must be an int between 0 and 8 inclusive.",
         ):
             handle_command("timeoff 9")
+
+
+@pytest.mark.parametrize(
+    "mins,expected",
+    [(50, "50min"), (70, "1h 10min"), (-20, "-20min"), (-70, "-1h 10min")],
+)
+def test_fmt_mins(mins, expected) -> None:
+    assert fmt_mins(mins) == expected
