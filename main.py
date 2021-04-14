@@ -133,7 +133,7 @@ def save_timesheet(ts: Timesheet, datafile: str = None) -> None:
 
 
 def _time_cmd(cmd: Callable[[datetime], None], params: List[str]) -> None:
-    if len(params) > 0:
+    if params:
         h, m = map(int, params[0].split(":"))
         time = datetime.today().replace(hour=h, minute=m, second=0, microsecond=0)
         cmd(time)
@@ -285,10 +285,10 @@ def set_time_off(time_off_mins: int) -> None:
 
 
 def calc_total_flex() -> int:
-    flex = 0
-    for f in DATAFILE_DIR.glob("*-timesheet.json"):
-        flex += load_timesheet(f.name).monthly_flex
-    return flex
+    return sum(
+        load_timesheet(f.name).monthly_flex
+        for f in DATAFILE_DIR.glob("*-timesheet.json")
+    )
 
 
 def total_flex_as_str() -> str:
