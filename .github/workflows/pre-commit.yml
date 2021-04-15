@@ -30,3 +30,7 @@ jobs:
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Run pre-commit
       run: pre-commit run --verbose --all-files --show-diff-on-failure
+    - name: Upload Coverage to Codecov
+      uses: codecov/codecov-action@v1
+      with:
+        file: coverage.xml
