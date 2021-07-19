@@ -7,12 +7,18 @@ from pathlib import Path
 from typing import Callable, Dict, List, Union
 
 from dataclasses_json import dataclass_json
+from dotenv import dotenv_values
 
+# Default config, might be overriden by the config.env file in some cases
 WORKHOURS_ONE_DAY = 8
 NOTEPADPP_PATH = r"C:\Program Files (x86)\Notepad++\notepad++.exe"
 
 DATAFILE_DIR = Path(Path.home(), ".worktimer")
 DATAFILE = f"{datetime.today().year}-{datetime.today().month:02d}-timesheet.json"
+
+config = dotenv_values("config.env")
+if config.get("MODE", "") == "development":
+    DATAFILE_DIR = Path(".worktimer")
 
 
 def _today_iso_format() -> str:
@@ -344,7 +350,6 @@ def run():
     print(f"Total flex {total_flex_as_str()}")
     if len(ts.today.work_blocks) > 0:
         print(f"You started last work block @ {ts.today.last_work_block.start}")
-        _print_estimated_endtime_for_today(ts.today.work_blocks, 30)
 
     print_menu()
     done = False
