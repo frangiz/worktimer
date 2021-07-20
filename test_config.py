@@ -1,7 +1,8 @@
-from typing import OrderedDict
-from pathlib import Path
 from collections import OrderedDict
+from pathlib import Path
+
 import main
+
 
 def test_default_value_datafile_dir_is_in_home_folder(mocker) -> None:
     expected = Path(Path.home(), ".worktimer")
