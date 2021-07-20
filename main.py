@@ -13,12 +13,28 @@ from dotenv import dotenv_values
 WORKHOURS_ONE_DAY = 8
 NOTEPADPP_PATH = r"C:\Program Files (x86)\Notepad++\notepad++.exe"
 
-DATAFILE_DIR = Path(Path.home(), ".worktimer")
 DATAFILE = f"{datetime.today().year}-{datetime.today().month:02d}-timesheet.json"
 
-config = dotenv_values("config.env")
-if config.get("MODE", "") == "development":
-    DATAFILE_DIR = Path(".worktimer")
+
+class Config:
+    mode: str
+    datafile_dir: Path
+
+    def __init__(self) -> None:
+        self.reload()
+
+    def reload(self):
+        # Set default values
+        self.datafile_dir = Path(Path.home(), ".worktimer")
+
+        # Override default values
+        config = dotenv_values("config.env")
+        if config.get("mode", "") == "dev":
+            self.mode = "dev"
+            self.datafile_dir = Path(".worktimer")
+
+
+cfg = Config()
 
 
 def _today_iso_format() -> str:
@@ -121,10 +137,10 @@ class RecalcAction(Enum):
 def load_timesheet(datafile: str = None) -> Timesheet:
     if datafile is None:
         datafile = DATAFILE
-    if not DATAFILE_DIR.joinpath(datafile).is_file():
+    if not cfg.datafile_dir.joinpath(datafile).is_file():
         empty_ts = Timesheet()
         save_timesheet(empty_ts)
-    with open(DATAFILE_DIR.joinpath(datafile), "r", encoding="utf-8") as f:
+    with open(cfg.datafile_dir.joinpath(datafile), "r", encoding="utf-8") as f:
         ts = Timesheet.from_dict(json.load(f))  # type: ignore
         for k, v in ts.days.items():
             v.date_str = k
@@ -134,7 +150,7 @@ def load_timesheet(datafile: str = None) -> Timesheet:
 def save_timesheet(ts: Timesheet, datafile: str = None) -> None:
     if datafile is None:
         datafile = DATAFILE
-    with open(DATAFILE_DIR.joinpath(datafile), "w+", encoding="utf-8") as f:
+    with open(cfg.datafile_dir.joinpath(datafile), "w+", encoding="utf-8") as f:
         json.dump(ts.to_dict(), f, ensure_ascii=False, indent=4, sort_keys=True)
 
 
@@ -260,7 +276,7 @@ def lunch(lunch_mins: int) -> None:
 
 
 def edit() -> None:
-    subprocess.call([NOTEPADPP_PATH, DATAFILE_DIR.joinpath(DATAFILE)])
+    subprocess.call([NOTEPADPP_PATH, cfg.datafile_dir.joinpath(DATAFILE)])
 
 
 def view(viewSpan: ViewSpans = ViewSpans.TODAY) -> None:
@@ -271,7 +287,7 @@ def view(viewSpan: ViewSpans = ViewSpans.TODAY) -> None:
 
 def recalc(action: RecalcAction = RecalcAction.FLEX) -> None:
     if action == RecalcAction.FLEX:
-        for f in DATAFILE_DIR.glob("*-timesheet.json"):
+        for f in cfg.datafile_dir.glob("*-timesheet.json"):
             ts = load_timesheet(f.name)
             for _, v in ts.days.items():
                 v.recalc_flex()
@@ -293,7 +309,7 @@ def set_time_off(time_off_mins: int) -> None:
 def calc_total_flex() -> int:
     return sum(
         load_timesheet(f.name).monthly_flex
-        for f in DATAFILE_DIR.glob("*-timesheet.json")
+        for f in cfg.datafile_dir.glob("*-timesheet.json")
     )
 
 
@@ -344,7 +360,9 @@ def fmt_mins(mins: int) -> str:
 
 
 def run():
-    DATAFILE_DIR.mkdir(exist_ok=True)
+    cfg.datafile_dir.mkdir(exist_ok=True)
+    if cfg.mode == "dev":
+        print("Running in dev mode.")
 
     ts = load_timesheet()
     print(f"Total flex {total_flex_as_str()}")

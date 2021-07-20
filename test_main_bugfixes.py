@@ -8,12 +8,12 @@ from main import handle_command, load_timesheet
 
 
 def setup_module(module: Any) -> None:
-    main.DATAFILE_DIR = Path("test_files")
-    main.DATAFILE_DIR.mkdir(exist_ok=True)
+    main.cfg.datafile_dir = Path("test_files")
+    main.cfg.datafile_dir.mkdir(exist_ok=True)
 
 
 def setup_function(func: Any) -> None:
-    files = main.DATAFILE_DIR.glob("*-timesheet.json")
+    files = main.cfg.datafile_dir.glob("*-timesheet.json")
     for f in files:
         f.unlink()
 
