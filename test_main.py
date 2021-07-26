@@ -162,19 +162,19 @@ def test_running_stop_twice_will_not_overwrite_last_stop() -> None:
 def test_total_flextime() -> None:
     ts = Timesheet()
     ts.get_day("2020-07-01").flex_minutes = 2
-    main.DATAFILE = "2020-07-timesheet.json"
+    main.cfg.datafile = "2020-07-timesheet.json"
     save_timesheet(ts)
 
     ts = Timesheet()
     ts.get_day("2020-08-01").flex_minutes = 3
-    main.DATAFILE = "2020-08-timesheet.json"
+    main.cfg.datafile = "2020-08-timesheet.json"
     save_timesheet(ts)
 
     assert calc_total_flex() == 5
 
 
 def test_flextime_correct_during_weekend() -> None:
-    main.DATAFILE = "2020-09-timesheet.json"
+    main.cfg.datafile = "2020-09-timesheet.json"
     with freeze_time("2020-09-26"):  # A Saturday
         handle_command("start 08:00")
         handle_command("stop 09:02")
@@ -186,7 +186,7 @@ def test_flextime_correct_during_weekend() -> None:
 def test_total_flex_as_str_less_than_one_hour() -> None:
     ts = Timesheet()
     ts.get_day("2020-07-01").flex_minutes = 2
-    main.DATAFILE = "2020-07-timesheet.json"
+    main.cfg.datafile = "2020-07-timesheet.json"
     save_timesheet(ts)
 
     assert total_flex_as_str() == "2min"
@@ -195,7 +195,7 @@ def test_total_flex_as_str_less_than_one_hour() -> None:
 def test_total_flex_as_str_exactly_one_hour() -> None:
     ts = Timesheet()
     ts.get_day("2020-07-01").flex_minutes = 60
-    main.DATAFILE = "2020-07-timesheet.json"
+    main.cfg.datafile = "2020-07-timesheet.json"
     save_timesheet(ts)
 
     assert total_flex_as_str() == "1h 0min"
@@ -204,14 +204,14 @@ def test_total_flex_as_str_exactly_one_hour() -> None:
 def test_total_flex_as_str_more_than_one_hour() -> None:
     ts = Timesheet()
     ts.get_day("2020-07-01").flex_minutes = 63
-    main.DATAFILE = "2020-07-timesheet.json"
+    main.cfg.datafile = "2020-07-timesheet.json"
     save_timesheet(ts)
 
     assert total_flex_as_str() == "1h 3min"
 
 
 def test_start_no_arguments() -> None:
-    main.DATAFILE = "2020-09-timesheet.json"
+    main.cfg.datafile = "2020-09-timesheet.json"
     with freeze_time("2020-09-26 08:03"):  # A Saturday
         handle_command("start")
 
@@ -219,7 +219,7 @@ def test_start_no_arguments() -> None:
 
 
 def test_stop_no_arguments() -> None:
-    main.DATAFILE = "2020-09-timesheet.json"
+    main.cfg.datafile = "2020-09-timesheet.json"
     with freeze_time("2020-09-26 08:07"):  # A Saturday
         handle_command("start 08:00")
         handle_command("stop")
@@ -228,7 +228,7 @@ def test_stop_no_arguments() -> None:
 
 
 def test_view_today(capsys) -> None:
-    main.DATAFILE = "2020-11-timesheet.json"
+    main.cfg.datafile = "2020-11-timesheet.json"
     with freeze_time("2020-11-24"):  # A Tuesday
         handle_command("start 08:02")
         handle_command("lunch 25")
@@ -249,7 +249,7 @@ def test_view_today(capsys) -> None:
 
 
 def test_view_today_with_workblock_not_ended(capsys) -> None:
-    main.DATAFILE = "2020-11-timesheet.json"
+    main.cfg.datafile = "2020-11-timesheet.json"
     with freeze_time("2020-11-24"):  # A Tuesday
         handle_command("start 08:02")
         capsys.readouterr()
@@ -265,7 +265,7 @@ def test_view_today_with_workblock_not_ended(capsys) -> None:
 
 
 def test_timeoff_half_day() -> None:
-    main.DATAFILE = "2021-04-timesheet.json"
+    main.cfg.datafile = "2021-04-timesheet.json"
     with freeze_time("2021-04-02"):  # A Friday
         handle_command("timeoff 4")
         handle_command("start 08:00")
@@ -277,7 +277,7 @@ def test_timeoff_half_day() -> None:
 
 
 def test_timeoff_full_day() -> None:
-    main.DATAFILE = "2021-04-timesheet.json"
+    main.cfg.datafile = "2021-04-timesheet.json"
     with freeze_time("2021-04-02"):  # A Friday
         handle_command("timeoff 8")
 
@@ -287,7 +287,7 @@ def test_timeoff_full_day() -> None:
 
 
 def test_timeoff_recalcs_flex() -> None:
-    main.DATAFILE = "2021-04-timesheet.json"
+    main.cfg.datafile = "2021-04-timesheet.json"
     with freeze_time("2021-04-02"):  # A Friday
         handle_command("start 08:00")
         handle_command("stop 12:02")
@@ -303,7 +303,7 @@ def test_timeoff_recalcs_flex() -> None:
 
 
 def test_timeoff_negative_input() -> None:
-    main.DATAFILE = "2021-04-timesheet.json"
+    main.cfg.datafile = "2021-04-timesheet.json"
     with freeze_time("2021-04-02"):  # A Friday
         with pytest.raises(
             ValueError,
@@ -313,7 +313,7 @@ def test_timeoff_negative_input() -> None:
 
 
 def test_timeoff_more_than_a_workday() -> None:
-    main.DATAFILE = "2021-04-timesheet.json"
+    main.cfg.datafile = "2021-04-timesheet.json"
     with freeze_time("2021-04-02"):  # A Friday
         with pytest.raises(
             ValueError,

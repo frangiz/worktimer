@@ -9,16 +9,13 @@ from typing import Callable, Dict, List, Union
 from dataclasses_json import dataclass_json
 from dotenv import dotenv_values
 
-# Default config, might be overriden by the config.env file in some cases
-WORKHOURS_ONE_DAY = 8
-NOTEPADPP_PATH = r"C:\Program Files (x86)\Notepad++\notepad++.exe"
-
-DATAFILE = f"{datetime.today().year}-{datetime.today().month:02d}-timesheet.json"
-
 
 class Config:
     mode: str
     datafile_dir: Path
+    datafile: str
+    workhours_one_day: int
+    notepadpp_path: str
 
     def __init__(self) -> None:
         self.reload()
@@ -26,6 +23,11 @@ class Config:
     def reload(self):
         # Set default values
         self.datafile_dir = Path(Path.home(), ".worktimer")
+        self.datafile = (
+            f"{datetime.today().year}-{datetime.today().month:02d}-timesheet.json"
+        )
+        self.workhours_one_day = 8
+        self.notepadpp_path = r"C:\Program Files (x86)\Notepad++\notepad++.exe"
 
         # Override default values
         config = dotenv_values("config.env")
@@ -77,7 +79,7 @@ class Day:
         return self.work_blocks[-1]
 
     def recalc_flex(self) -> None:
-        expected_worktime_in_mins = WORKHOURS_ONE_DAY * 60
+        expected_worktime_in_mins = cfg.workhours_one_day * 60
         time_off_minutes = self.time_off_minutes
         weekday = datetime.strptime(self.date_str, "%Y-%m-%d").isoweekday()
         # Check if weekend
@@ -136,7 +138,7 @@ class RecalcAction(Enum):
 
 def load_timesheet(datafile: str = None) -> Timesheet:
     if datafile is None:
-        datafile = DATAFILE
+        datafile = cfg.datafile
     if not cfg.datafile_dir.joinpath(datafile).is_file():
         empty_ts = Timesheet()
         save_timesheet(empty_ts)
@@ -149,7 +151,7 @@ def load_timesheet(datafile: str = None) -> Timesheet:
 
 def save_timesheet(ts: Timesheet, datafile: str = None) -> None:
     if datafile is None:
-        datafile = DATAFILE
+        datafile = cfg.datafile
     with open(cfg.datafile_dir.joinpath(datafile), "w+", encoding="utf-8") as f:
         json.dump(ts.to_dict(), f, ensure_ascii=False, indent=4, sort_keys=True)
 
@@ -205,7 +207,7 @@ def _print_estimated_endtime_for_today(
     work_blocks: List[WorkBlock], lunch: int = 30
 ) -> None:
     mins_left_to_work = (
-        (WORKHOURS_ONE_DAY * 60) + lunch - sum(wt.worked_time for wt in work_blocks)
+        (cfg.workhours_one_day * 60) + lunch - sum(wt.worked_time for wt in work_blocks)
     )
     work_end_with_lunch = (
         (_today_with_time(work_blocks[-1].start) + timedelta(minutes=mins_left_to_work))
@@ -276,7 +278,7 @@ def lunch(lunch_mins: int) -> None:
 
 
 def edit() -> None:
-    subprocess.call([NOTEPADPP_PATH, cfg.datafile_dir.joinpath(DATAFILE)])
+    subprocess.call([cfg.notepadpp_path, cfg.datafile_dir.joinpath(cfg.datafile)])
 
 
 def view(viewSpan: ViewSpans = ViewSpans.TODAY) -> None:
