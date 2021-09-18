@@ -22,6 +22,7 @@ class Config:
 
     def reload(self):
         # Set default values
+        self.mode = ""
         self.datafile_dir = Path(Path.home(), ".worktimer")
         self.datafile = (
             f"{datetime.today().year}-{datetime.today().month:02d}-timesheet.json"
