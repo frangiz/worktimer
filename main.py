@@ -181,12 +181,12 @@ def handle_command(cmd: str) -> None:
         edit()
     elif cmd == "view":
         if len(params) > 0:
-            view(ViewSpans[params[0]])
+            view(ViewSpans[params[0].upper()])
         else:
             view()
     elif cmd == "recalc":
         if len(params) > 0:
-            recalc(RecalcAction[params[0]])
+            recalc(RecalcAction[params[0].upper()])
         else:
             recalc()
     elif cmd == "timeoff":
