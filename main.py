@@ -289,8 +289,11 @@ def view(viewSpan: ViewSpans = ViewSpans.TODAY) -> None:
         print_days([ts.today])
     elif viewSpan == ViewSpans.WEEK:
         days_to_show = []
-        for n in range(date.today().isocalendar().weekday - 1, -1, -1):
-            days_to_show.append(ts.get_day((date.today() - timedelta(days=n)).isoformat()))
+        _, _, weekday = date.today().isocalendar()
+        for n in range(weekday - 1, -1, -1):
+            days_to_show.append(
+                ts.get_day((date.today() - timedelta(days=n)).isoformat())
+            )
         print_days(days_to_show)
 
 
