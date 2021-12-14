@@ -264,6 +264,40 @@ def test_view_today_with_workblock_not_ended(capsys) -> None:
     assert "\n".join(expected) in captured.out
 
 
+def test_view_week(capsys) -> None:
+    main.cfg.datafile = "2020-11-timesheet.json"
+    with freeze_time("2020-11-22"):  # A Sunday the week before
+        handle_command("start 08:00")
+        handle_command("lunch")
+        handle_command("stop 16:30")
+    # The Monday is intentionally excluded
+    with freeze_time("2020-11-24"):  # A Tuesday
+        handle_command("start 08:02")
+        handle_command("lunch")
+        handle_command("stop 16:30")
+
+    with freeze_time("2020-11-25"):  # A Wednesday
+        handle_command("start 08:02")
+        handle_command("lunch 25")
+        handle_command("stop 14:21")
+        handle_command("start 15:01")
+        handle_command("stop 17:27")
+        capsys.readouterr()
+
+        handle_command("view week")  # Act
+    captured = capsys.readouterr()
+
+    expected = [
+        "2020-11-23 | lunch: 0min | daily flex: 0min",
+        "2020-11-24 | lunch: 30min | daily flex: -2min",
+        "  08:02-16:30 => 8h 28min",
+        "2020-11-25 | lunch: 25min | daily flex: 20min",
+        "  08:02-14:21 => 6h 19min",
+        "  15:01-17:27 => 2h 26min",
+    ]
+    assert "\n".join(expected) in captured.out
+
+
 def test_view_is_case_insensitive(capsys) -> None:
     main.cfg.datafile = "2020-11-timesheet.json"
     with freeze_time("2020-11-24"):  # A Tuesday

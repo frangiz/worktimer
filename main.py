@@ -2,7 +2,7 @@ import json
 import subprocess
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
-from enum import Enum
+from enum import Enum, auto
 from pathlib import Path
 from typing import Callable, Dict, List, Union
 
@@ -130,7 +130,8 @@ class Timesheet:
 
 
 class ViewSpans(Enum):
-    TODAY = 1
+    TODAY = auto()
+    WEEK = auto()
 
 
 class RecalcAction(Enum):
@@ -283,9 +284,14 @@ def edit() -> None:
 
 
 def view(viewSpan: ViewSpans = ViewSpans.TODAY) -> None:
+    ts = load_timesheet()
     if viewSpan == ViewSpans.TODAY:
-        ts = load_timesheet()
         print_days([ts.today])
+    elif viewSpan == ViewSpans.WEEK:
+        days_to_show = []
+        for n in range(date.today().isocalendar().weekday - 1, -1, -1):
+            days_to_show.append(ts.get_day((date.today() - timedelta(days=n)).isoformat()))
+        print_days(days_to_show)
 
 
 def recalc(action: RecalcAction = RecalcAction.FLEX) -> None:
