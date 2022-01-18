@@ -241,7 +241,7 @@ def test_view_today(capsys) -> None:
     captured = capsys.readouterr()
 
     expected = [
-        "2020-11-24 | lunch: 25min | daily flex: 20min",
+        "2020-11-24 | worked time: 8h 20min | lunch: 25min | daily flex: 20min",
         "  08:02-14:21 => 6h 19min",
         "  15:01-17:27 => 2h 26min",
     ]
@@ -258,7 +258,7 @@ def test_view_today_with_workblock_not_ended(capsys) -> None:
     captured = capsys.readouterr()
 
     expected = [
-        "2020-11-24 | lunch: 0min | daily flex: 0min",
+        "2020-11-24 | worked time: 0min | lunch: 0min | daily flex: 0min",
         "  08:02-",
     ]
     assert "\n".join(expected) in captured.out
@@ -288,10 +288,10 @@ def test_view_week(capsys) -> None:
     captured = capsys.readouterr()
 
     expected = [
-        "2020-11-23 | lunch: 0min | daily flex: 0min",
-        "2020-11-24 | lunch: 30min | daily flex: -2min",
+        "2020-11-23 | worked time: 0min | lunch: 0min | daily flex: 0min",
+        "2020-11-24 | worked time: 7h 58min | lunch: 30min | daily flex: -2min",
         "  08:02-16:30 => 8h 28min",
-        "2020-11-25 | lunch: 25min | daily flex: 20min",
+        "2020-11-25 | worked time: 8h 20min | lunch: 25min | daily flex: 20min",
         "  08:02-14:21 => 6h 19min",
         "  15:01-17:27 => 2h 26min",
     ]
@@ -308,7 +308,7 @@ def test_view_is_case_insensitive(capsys) -> None:
     captured = capsys.readouterr()
 
     expected = [
-        "2020-11-24 | lunch: 0min | daily flex: 0min",
+        "2020-11-24 | worked time: 0min | lunch: 0min | daily flex: 0min",
         "  08:02-",
     ]
     assert "\n".join(expected) in captured.out
@@ -378,3 +378,34 @@ def test_timeoff_more_than_a_workday() -> None:
 )
 def test_fmt_mins(mins, expected) -> None:
     assert fmt_mins(mins) == expected
+
+
+def test_worked_time() -> None:
+    handle_command("start 08:00")
+    handle_command("stop 09:00")  # Worked 1 hour
+
+    handle_command("start 12:00")
+    handle_command("stop 14:00")  # Worked 2 more hours
+
+    ts = load_timesheet()
+    assert ts.today.worked_time == 3 * 60
+
+
+def test_worked_time_with_lunch() -> None:
+    handle_command("start 08:00")
+    handle_command("stop 09:00")
+    handle_command("lunch 25")
+
+    ts = load_timesheet()
+    # Worked 35 min and had 25 min lunch
+    assert ts.today.worked_time == 35
+    assert ts.today.lunch == 25
+
+
+def test_worked_time_with_a_block_not_stopped() -> None:
+    handle_command("start 08:10")
+    handle_command("stop 08:30")  # Worked 2 mins
+    handle_command("start 08:50")
+
+    ts = load_timesheet()
+    assert ts.today.worked_time == 20

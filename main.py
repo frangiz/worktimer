@@ -79,6 +79,10 @@ class Day:
             self.work_blocks.append(WorkBlock())
         return self.work_blocks[-1]
 
+    @property
+    def worked_time(self) -> int:
+        return sum(wt.worked_time for wt in self.work_blocks) - self.lunch
+
     def recalc_flex(self) -> None:
         expected_worktime_in_mins = cfg.workhours_one_day * 60
         time_off_minutes = self.time_off_minutes
@@ -91,10 +95,7 @@ class Day:
             self.flex_minutes = 0
         else:
             self.flex_minutes = (
-                sum(wt.worked_time for wt in self.work_blocks)
-                - expected_worktime_in_mins
-                - self.lunch
-                + time_off_minutes
+                self.worked_time - expected_worktime_in_mins + time_off_minutes
             )
 
     @staticmethod
@@ -285,16 +286,16 @@ def edit() -> None:
 
 def view(viewSpan: ViewSpans = ViewSpans.TODAY) -> None:
     ts = load_timesheet()
+    days_to_show = []
     if viewSpan == ViewSpans.TODAY:
-        print_days([ts.today])
+        days_to_show.append(ts.today)
     elif viewSpan == ViewSpans.WEEK:
-        days_to_show = []
         _, _, weekday = date.today().isocalendar()
         for n in range(weekday - 1, -1, -1):
             days_to_show.append(
                 ts.get_day((date.today() - timedelta(days=n)).isoformat())
             )
-        print_days(days_to_show)
+    print_days(days_to_show)
 
 
 def recalc(action: RecalcAction = RecalcAction.FLEX) -> None:
@@ -345,6 +346,7 @@ def print_days(days: List[Day]) -> None:
         header = " | ".join(
             [
                 day.date_str,
+                f"worked time: {fmt_mins(day.worked_time)}",
                 f"lunch: {fmt_mins(day.lunch)}",
                 f"daily flex: {fmt_mins(day.flex_minutes)}",
             ]
