@@ -402,6 +402,14 @@ def test_worked_time_with_lunch() -> None:
     assert ts.today.lunch == 25
 
 
+def test_worked_time_with_no_block_stopped() -> None:
+    handle_command("start 08:10")
+    handle_command("lunch")
+
+    ts = load_timesheet()
+    assert ts.today.worked_time == 0
+
+
 def test_worked_time_with_a_block_not_stopped() -> None:
     handle_command("start 08:10")
     handle_command("stop 08:30")  # Worked 2 mins

@@ -81,7 +81,10 @@ class Day:
 
     @property
     def worked_time(self) -> int:
-        return sum(wt.worked_time for wt in self.work_blocks) - self.lunch
+        worked_mins = sum(wt.worked_time for wt in self.work_blocks)
+        if worked_mins == 0:
+            return 0
+        return worked_mins - self.lunch
 
     def recalc_flex(self) -> None:
         expected_worktime_in_mins = cfg.workhours_one_day * 60
