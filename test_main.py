@@ -37,7 +37,7 @@ def test_flex(capsys, stop_time, flex) -> None:
     with freeze_time("2020-09-23"):  # A Wednesday
         handle_command("start 08:00")
         handle_command("lunch")
-        handle_command("stop " + stop_time)
+        handle_command(f"stop {stop_time}")
 
         ts = load_timesheet()
         assert ts.today.flex_minutes == flex

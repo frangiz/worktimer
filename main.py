@@ -70,7 +70,7 @@ class WorkBlock(BaseModel):
 
 
 class Day(BaseModel):
-    this_date: Optional[date]
+    this_date: date
     lunch: int = 0
     flex_minutes: int = 0
     work_blocks: List[WorkBlock] = Field(default_factory=lambda: [])
@@ -104,12 +104,6 @@ class Day(BaseModel):
                 self.worked_time - expected_worktime_in_mins + time_off_minutes
             )
 
-    @staticmethod
-    def from_date(date_val: date) -> "Day":
-        d = Day()
-        d.this_date = date_val
-        return d
-
 
 class Timesheet(BaseModel):
     days: Dict[str, Day] = Field(default_factory=lambda: {})
@@ -122,16 +116,13 @@ class Timesheet(BaseModel):
     def today(self) -> Day:
         today = _today_iso_format()
         if today not in self.days:
-            self.days[today] = Day.from_date(datetime.now().today())
+            self.days[today] = Day(this_date=datetime.now().date())
         return self.days[today]
 
     def get_day(self, key: str) -> Day:
         if key not in self.days:
-            self.days[key] = Day.from_date(date.fromisoformat(key))
+            self.days[key] = Day(this_date=date.fromisoformat(key))
         return self.days[key]
-
-    def to_dict(self) -> Dict:  ## TODO: remove?
-        return {}
 
 
 class ViewSpans(Enum):
