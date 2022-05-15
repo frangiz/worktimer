@@ -70,7 +70,7 @@ class WorkBlock(BaseModel):
 
 
 class Day(BaseModel):
-    date_str: str = ""
+    this_date: Optional[date]
     lunch: int = 0
     flex_minutes: int = 0
     work_blocks: List[WorkBlock] = Field(default_factory=lambda: [])
@@ -92,7 +92,7 @@ class Day(BaseModel):
     def recalc_flex(self) -> None:
         expected_worktime_in_mins = cfg.workhours_one_day * 60
         time_off_minutes = self.time_off_minutes
-        weekday = datetime.strptime(self.date_str, "%Y-%m-%d").isoweekday()
+        weekday = self.this_date.isoweekday()
         # Check if weekend
         if weekday in [6, 7]:
             expected_worktime_in_mins = 0
@@ -105,9 +105,9 @@ class Day(BaseModel):
             )
 
     @staticmethod
-    def from_date_str(date_str: str) -> "Day":
+    def from_date(date_val: date) -> "Day":
         d = Day()
-        d.date_str = date_str
+        d.this_date = date_val
         return d
 
 
@@ -122,15 +122,15 @@ class Timesheet(BaseModel):
     def today(self) -> Day:
         today = _today_iso_format()
         if today not in self.days:
-            self.days[today] = Day.from_date_str(today)
+            self.days[today] = Day.from_date(datetime.now().today())
         return self.days[today]
 
     def get_day(self, key: str) -> Day:
         if key not in self.days:
-            self.days[key] = Day.from_date_str(key)
+            self.days[key] = Day.from_date(date.fromisoformat(key))
         return self.days[key]
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> Dict:  ## TODO: remove?
         return {}
 
 
@@ -162,7 +162,7 @@ def save_timesheet(ts: Timesheet, datafile: str = None) -> None:
 def _time_cmd(cmd: Callable[[datetime], None], params: List[str]) -> None:
     if params:
         h, m = map(int, params[0].split(":"))
-        time = datetime.today().replace(hour=h, minute=m, second=0, microsecond=0)
+        time = datetime.now().replace(hour=h, minute=m, second=0, microsecond=0)
         cmd(time)
     else:
         cmd(datetime.now().replace(second=0, microsecond=0))
@@ -342,7 +342,7 @@ def print_days(days: List[Day]) -> None:
     for day in days:
         header = " | ".join(
             [
-                day.date_str,
+                day.this_date.isoformat(),
                 f"worked time: {fmt_mins(day.worked_time)}",
                 f"lunch: {fmt_mins(day.lunch)}",
                 f"daily flex: {fmt_mins(day.flex_minutes)}",
