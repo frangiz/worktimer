@@ -1,3 +1,4 @@
+from datetime import time
 from pathlib import Path
 from typing import Any
 
@@ -36,7 +37,7 @@ def test_flex(capsys, stop_time, flex) -> None:
     with freeze_time("2020-09-23"):  # A Wednesday
         handle_command("start 08:00")
         handle_command("lunch")
-        handle_command("stop " + stop_time)
+        handle_command(f"stop {stop_time}")
 
         ts = load_timesheet()
         assert ts.today.flex_minutes == flex
@@ -146,17 +147,17 @@ def test_stop_fails_if_last_workblock_is_not_started(capsys) -> None:
 
     handle_command("start 08:05")
     handle_command("stop 08:10")
-    assert load_timesheet().today.last_work_block.stop == "08:10:00"
+    assert load_timesheet().today.last_work_block.stop == time.fromisoformat("08:10:00")
     assert load_timesheet().today.last_work_block.stopped()
 
 
 def test_running_stop_twice_will_not_overwrite_last_stop() -> None:
     handle_command("start 08:01")
     handle_command("stop 08:03")
-    assert load_timesheet().today.last_work_block.stop == "08:03:00"
+    assert load_timesheet().today.last_work_block.stop == time.fromisoformat("08:03:00")
 
     handle_command("stop 08:05")
-    assert load_timesheet().today.last_work_block.stop == "08:03:00"
+    assert load_timesheet().today.last_work_block.stop == time.fromisoformat("08:03:00")
 
 
 def test_total_flextime() -> None:
@@ -215,7 +216,9 @@ def test_start_no_arguments() -> None:
     with freeze_time("2020-09-26 08:03"):  # A Saturday
         handle_command("start")
 
-        assert load_timesheet().today.last_work_block.start == "08:03:00"
+        assert load_timesheet().today.last_work_block.start == time.fromisoformat(
+            "08:03:00"
+        )
 
 
 def test_stop_no_arguments() -> None:
@@ -224,7 +227,9 @@ def test_stop_no_arguments() -> None:
         handle_command("start 08:00")
         handle_command("stop")
 
-        assert load_timesheet().today.last_work_block.stop == "08:07:00"
+        assert load_timesheet().today.last_work_block.stop == time.fromisoformat(
+            "08:07:00"
+        )
 
 
 def test_view_today(capsys) -> None:
