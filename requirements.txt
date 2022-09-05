@@ -1,5 +1,5 @@
 python-dotenv==0.21.0
-pydantic==1.9.2
+pydantic==1.10.1
 
 # test
 pytest==7.1.2
