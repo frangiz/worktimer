@@ -9,3 +9,6 @@ pytest-mock==3.9.0
 
 # formatting
 pre-commit==2.20.0
+
+# https://github.com/python/importlib_metadata/issues/406
+importlib_metadata<5.0.0
