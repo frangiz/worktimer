@@ -94,7 +94,7 @@ class Day(BaseModel):
         time_off_minutes = self.time_off_minutes
         weekday = self.this_date.isoweekday()
         # Check if weekend
-        if weekday in [6, 7]:
+        if weekday in (6, 7):
             expected_worktime_in_mins = 0
             time_off_minutes = 0
         if len(self.work_blocks) == 1 and not self.last_work_block.stopped():
@@ -166,24 +166,24 @@ def handle_command(cmd: str) -> None:
     elif cmd == "stop":
         _time_cmd(stop, params)
     elif cmd == "lunch":
-        if len(params) > 0:
+        if params:
             lunch(int(params[0]))
         else:
             lunch(30)
     elif cmd == "edit":
         edit()
     elif cmd == "view":
-        if len(params) > 0:
+        if params:
             view(ViewSpans[params[0].upper()])
         else:
             view()
     elif cmd == "recalc":
-        if len(params) > 0:
+        if params:
             recalc(RecalcAction[params[0].upper()])
         else:
             recalc()
     elif cmd == "timeoff":
-        if len(params) > 0:
+        if params:
             set_time_off(int(params[0]) * 60)
     elif cmd == "help":
         print("help you say?")
