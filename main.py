@@ -134,7 +134,7 @@ class RecalcAction(Enum):
     FLEX = 1
 
 
-def load_timesheet(datafile: str = None) -> Timesheet:
+def load_timesheet(datafile: Optional[str] = None) -> Timesheet:
     if datafile is None:
         datafile = cfg.datafile
     if not cfg.datafile_dir.joinpath(datafile).is_file():
@@ -143,7 +143,7 @@ def load_timesheet(datafile: str = None) -> Timesheet:
     return Timesheet.parse_file(cfg.datafile_dir.joinpath(datafile))
 
 
-def save_timesheet(ts: Timesheet, datafile: str = None) -> None:
+def save_timesheet(ts: Timesheet, datafile: Optional[str] = None) -> None:
     if datafile is None:
         datafile = cfg.datafile
     with open(cfg.datafile_dir.joinpath(datafile), "w+", encoding="utf-8") as f:
