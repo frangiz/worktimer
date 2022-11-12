@@ -31,6 +31,10 @@ repos:
       - id: mypy
         args:
           - --ignore-missing-imports
+  - repo: https://github.com/dosisod/refurb
+    rev: v1.6.0
+    hooks:
+      - id: refurb
   - repo: local
     hooks:
     - id: pytest-cov
