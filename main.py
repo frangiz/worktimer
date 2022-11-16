@@ -341,13 +341,13 @@ def print_days(days: List[Day]) -> None:
 
 def _print_day(day: Day) -> None:
     header = " | ".join(
-            [
-                day.this_date.isoformat(),
-                f"worked time: {fmt_mins(day.worked_time)}",
-                f"lunch: {fmt_mins(day.lunch)}",
-                f"daily flex: {fmt_mins(day.flex_minutes)}",
-            ]
-        )
+        [
+            day.this_date.isoformat(),
+            f"worked time: {fmt_mins(day.worked_time)}",
+            f"lunch: {fmt_mins(day.lunch)}",
+            f"daily flex: {fmt_mins(day.flex_minutes)}",
+        ]
+    )
     print(header)
     _print_work_blocks(day.work_blocks)
 
