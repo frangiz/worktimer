@@ -330,17 +330,26 @@ def print_menu():
 
 
 def print_days(days: List[Day]) -> None:
-    for day in days:
-        header = " | ".join(
-            [
-                day.this_date.isoformat(),
-                f"worked time: {fmt_mins(day.worked_time)}",
-                f"lunch: {fmt_mins(day.lunch)}",
-                f"daily flex: {fmt_mins(day.flex_minutes)}",
-            ]
-        )
-        print(header)
-        _print_work_blocks(day.work_blocks)
+    if len(days) == 1:
+        _print_day(days[0])
+        return
+    for day in days[:-1]:
+        _print_day(day)
+        print("")
+    _print_day(days[-1])
+
+
+def _print_day(day: Day) -> None:
+    header = " | ".join(
+        [
+            day.this_date.isoformat(),
+            f"worked time: {fmt_mins(day.worked_time)}",
+            f"lunch: {fmt_mins(day.lunch)}",
+            f"daily flex: {fmt_mins(day.flex_minutes)}",
+        ]
+    )
+    print(header)
+    _print_work_blocks(day.work_blocks)
 
 
 def _print_work_blocks(blocks: List[WorkBlock]) -> None:
