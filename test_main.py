@@ -263,7 +263,7 @@ def test_view_today_with_workblock_not_ended(capsys) -> None:
     captured = capsys.readouterr()
 
     expected = [
-        "2020-11-24 | worked time: 0min | lunch: 0min | daily flex: 0min",
+        "2020-11-24 | worked time: 0h 0min | lunch: 0min | daily flex: 0min",
         "  08:02-",
     ]
     assert "\n".join(expected) in captured.out
@@ -293,7 +293,7 @@ def test_view_week(capsys) -> None:
     captured = capsys.readouterr()
 
     expected = [
-        "2020-11-23 | worked time: 0min | lunch: 0min | daily flex: 0min",
+        "2020-11-23 | worked time: 0h 0min | lunch: 0min | daily flex: 0min",
         "",
         "2020-11-24 | worked time: 7h 58min | lunch: 30min | daily flex: -2min",
         "  08:02-16:30 => 8h 28min",
@@ -315,7 +315,7 @@ def test_view_is_case_insensitive(capsys) -> None:
     captured = capsys.readouterr()
 
     expected = [
-        "2020-11-24 | worked time: 0min | lunch: 0min | daily flex: 0min",
+        "2020-11-24 | worked time: 0h 0min | lunch: 0min | daily flex: 0min",
         "  08:02-",
     ]
     assert "\n".join(expected) in captured.out

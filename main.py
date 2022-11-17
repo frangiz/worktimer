@@ -343,7 +343,7 @@ def _print_day(day: Day) -> None:
     header = " | ".join(
         [
             day.this_date.isoformat(),
-            f"worked time: {fmt_mins(day.worked_time)}",
+            f"worked time: {fmt_mins(day.worked_time, expand=True)}",
             f"lunch: {fmt_mins(day.lunch)}",
             f"daily flex: {fmt_mins(day.flex_minutes)}",
         ]
@@ -362,10 +362,10 @@ def _print_work_blocks(blocks: List[WorkBlock]) -> None:
             print(f"  {block_start}-{block_stop} => {fmt_mins(block.worked_time)}")
 
 
-def fmt_mins(mins: int) -> str:
+def fmt_mins(mins: int, expand: bool = False) -> str:
     sign = "" if mins >= 0 else "-"
     mins = abs(mins)
-    if mins < 60:
+    if mins < 60 and not expand:
         return f"{sign}{mins}min"
     return f"{sign}{mins // 60}h {mins % 60}min"
 
