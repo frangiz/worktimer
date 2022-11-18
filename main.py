@@ -1,3 +1,4 @@
+import contextlib
 import subprocess
 from datetime import date, datetime, time, timedelta
 from enum import Enum, auto
@@ -387,7 +388,8 @@ def run():
         if cmd in ("quit", "exit", "q"):
             done = True
         else:
-            handle_command(cmd.lower())
+            with contextlib.suppress(KeyError):
+                handle_command(cmd.lower())
 
 
 if __name__ == "__main__":
