@@ -340,6 +340,9 @@ def print_days(days: List[Day]) -> None:
         _print_day(day)
         print("")
     _print_day(days[-1])
+    weekly_flex = sum(d.flex_minutes for d in days)
+    print("---")
+    print(f"Weekly flex: {fmt_mins(weekly_flex)}")
 
 
 def _print_day(day: Day) -> None:
