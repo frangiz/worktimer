@@ -26,10 +26,17 @@ def setup_function(func: Any) -> None:
     files = main.cfg.datafile_dir.glob("*-timesheet.json")
     for f in files:
         f.unlink()
+    captured_output = Path(main.cfg.datafile_dir, "captured_output.txt")
+    if captured_output.exists():
+        captured_output.unlink()
 
 
 def teardown_function(func: Any) -> None:
     pass
+
+
+def write_captured_output(captured_output: str) -> None:
+    Path(main.cfg.datafile_dir, "captured_output.txt").write_text(captured_output)
 
 
 @pytest.mark.parametrize("stop_time,flex", [("16:30", 0), ("16:32", 2), ("16:27", -3)])
@@ -312,6 +319,7 @@ def test_view_week(capsys) -> None:
 
         handle_command("view week")  # Act
     captured = capsys.readouterr()
+    write_captured_output(captured.out)
 
     expected = [
         "2020-11-23 | worked time: 0h 0min | lunch: 0min | daily flex: 0min",
@@ -322,6 +330,8 @@ def test_view_week(capsys) -> None:
         "2020-11-25 | worked time: 8h 20min | lunch: 25min | daily flex: 20min",
         "  08:02-14:21 => 6h 19min",
         "  15:01-17:27 => 2h 26min",
+        "---",
+        "Weekly flex: 18min",
     ]
     assert "\n".join(expected) in captured.out
 
