@@ -3,7 +3,7 @@ import subprocess
 from datetime import date, datetime, time, timedelta
 from enum import Enum, auto
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from dotenv import dotenv_values
 from pydantic import BaseModel, Field
@@ -56,6 +56,7 @@ def time_diff(t1: Optional[time], t2: Optional[time]) -> int:
 class WorkBlock(BaseModel):
     start: Optional[time]
     stop: Optional[time]
+    comment: Optional[str]
 
     @property
     def worked_time(self) -> int:
@@ -86,9 +87,7 @@ class Day(BaseModel):
     @property
     def worked_time(self) -> int:
         worked_mins = sum(wt.worked_time for wt in self.work_blocks)
-        if worked_mins == 0:
-            return 0
-        return worked_mins - self.lunch
+        return 0 if worked_mins == 0 else worked_mins - self.lunch
 
     def recalc_flex(self) -> None:
         expected_worktime_in_mins = cfg.workhours_one_day * 60
@@ -151,21 +150,23 @@ def save_timesheet(ts: Timesheet, datafile: Optional[str] = None) -> None:
         f.write(ts.json(ensure_ascii=False, indent=4, sort_keys=True))
 
 
-def _time_cmd(cmd: Callable[[datetime], None], params: List[str]) -> None:
-    if params:
-        h, m = map(int, params[0].split(":"))
-        time = datetime.now().replace(hour=h, minute=m, second=0, microsecond=0)
-        cmd(time)
-    else:
-        cmd(datetime.now().replace(second=0, microsecond=0))
-
-
 def handle_command(cmd: str) -> None:
     cmd, *params = cmd.split()
     if cmd == "start":
-        _time_cmd(start, params)
+        if params:
+            h, m = map(int, params[0].split(":"))
+            time = datetime.now().replace(hour=h, minute=m, second=0, microsecond=0)
+            start(time)
+        else:
+            start(datetime.now().replace(second=0, microsecond=0))
     elif cmd == "stop":
-        _time_cmd(stop, params)
+        if params:
+            h, m = map(int, params[0].split(":"))
+            time = datetime.now().replace(hour=h, minute=m, second=0, microsecond=0)
+            comment = " ".join(params[1:]) if len(params) > 1 else None
+            stop(time, comment)
+        else:
+            stop(datetime.now().replace(second=0, microsecond=0))
     elif cmd == "lunch":
         if params:
             lunch(int(params[0]))
@@ -231,7 +232,7 @@ def start(start_time: datetime) -> None:
         _print_estimated_endtime_for_today(ts.today.work_blocks)
 
 
-def stop(stop_time: datetime) -> None:
+def stop(stop_time: datetime, comment: Optional[str] = None) -> None:
     ts = load_timesheet()
     if not ts.today.last_work_block.started():
         print("Could not stop workblock, is your last workblock started?")
@@ -241,6 +242,7 @@ def stop(stop_time: datetime) -> None:
     print(f"Stopping at {stop_time}")
 
     ts.today.last_work_block.stop = stop_time.time()
+    ts.today.last_work_block.comment = comment
     ts.today.recalc_flex()
 
     flex_hours = abs(ts.today.flex_minutes) // 60
@@ -361,6 +363,8 @@ def _print_work_blocks(blocks: List[WorkBlock]) -> None:
             print(f"  {block_start}-")
         else:
             print(f"  {block_start}-{block_stop} => {fmt_mins(block.worked_time)}")
+            if block.comment:
+                print(f"    {block.comment}")
 
 
 def fmt_mins(mins: int, expand: bool = False) -> str:

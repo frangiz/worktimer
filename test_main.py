@@ -269,6 +269,27 @@ def test_view_today_with_workblock_not_ended(capsys) -> None:
     assert "\n".join(expected) in captured.out
 
 
+def test_view_today_with_a_comment(capsys) -> None:
+    main.cfg.datafile = "2020-11-timesheet.json"
+    with freeze_time("2020-11-24"):  # A Tuesday
+        handle_command("start 08:00")
+        handle_command("stop 09:00 Worked on solving the crazy hard bug.")
+        handle_command("start 10:00")
+        handle_command("stop 11:30")
+        capsys.readouterr()
+
+        handle_command("view")  # Act
+    captured = capsys.readouterr()
+
+    expected = [
+        "2020-11-24 | worked time: 2h 30min | lunch: 0min | daily flex: -5h 30min",
+        "  08:00-09:00 => 1h 0min",
+        "    Worked on solving the crazy hard bug.",
+        "  10:00-11:30 => 1h 30min",
+    ]
+    assert "\n".join(expected) in captured.out
+
+
 def test_view_week(capsys) -> None:
     main.cfg.datafile = "2020-11-timesheet.json"
     with freeze_time("2020-11-22"):  # A Sunday the week before
