@@ -3,7 +3,7 @@ import subprocess
 from datetime import date, datetime, time, timedelta
 from enum import Enum, auto
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from dotenv import dotenv_values
 from pydantic import BaseModel, Field
@@ -148,15 +148,6 @@ def save_timesheet(ts: Timesheet, datafile: Optional[str] = None) -> None:
         datafile = cfg.datafile
     with open(cfg.datafile_dir.joinpath(datafile), "w+", encoding="utf-8") as f:
         f.write(ts.json(ensure_ascii=False, indent=4, sort_keys=True))
-
-
-def _time_cmd(cmd: Callable[[datetime], None], params: List[str]) -> None:
-    if params:
-        h, m = map(int, params[0].split(":"))
-        time = datetime.now().replace(hour=h, minute=m, second=0, microsecond=0)
-        cmd(time)
-    else:
-        cmd(datetime.now().replace(second=0, microsecond=0))
 
 
 def handle_command(cmd: str) -> None:
