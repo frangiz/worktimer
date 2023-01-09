@@ -287,6 +287,8 @@ def view(viewSpan: ViewSpans = ViewSpans.TODAY) -> None:
                 ts.get_day((date.today() - timedelta(days=n)).isoformat())
             )
     print_days(days_to_show)
+    if viewSpan == ViewSpans.WEEK:
+        _print_footer(days_to_show)
 
 
 def recalc(action: RecalcAction = RecalcAction.FLEX) -> None:
@@ -340,9 +342,6 @@ def print_days(days: List[Day]) -> None:
         _print_day(day)
         print("")
     _print_day(days[-1])
-    weekly_flex = sum(d.flex_minutes for d in days)
-    print("---")
-    print(f"Weekly flex: {fmt_mins(weekly_flex)}")
 
 
 def _print_day(day: Day) -> None:
@@ -356,6 +355,12 @@ def _print_day(day: Day) -> None:
     )
     print(header)
     _print_work_blocks(day.work_blocks)
+
+
+def _print_footer(days: List[Day]) -> None:
+    weekly_flex = sum(d.flex_minutes for d in days)
+    print("---")
+    print(f"Weekly flex: {fmt_mins(weekly_flex)}")
 
 
 def _print_work_blocks(blocks: List[WorkBlock]) -> None:
