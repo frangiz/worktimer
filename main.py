@@ -296,7 +296,7 @@ def view(viewSpan: ViewSpans = ViewSpans.TODAY) -> None:
 
 def summary(viewSpan: ViewSpans = ViewSpans.MONTH) -> None:
     ts = load_timesheet()
-    days: list[Day] = []
+    days: List[Day] = []
     for n in range(date.today().day - 1, -1, -1):
         days.append(ts.get_day((date.today() - timedelta(days=n)).isoformat()))
     print("date       | worked time | daily flex |")
