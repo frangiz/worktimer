@@ -352,6 +352,50 @@ def test_view_is_case_insensitive(capsys) -> None:
     assert "\n".join(expected) in captured.out
 
 
+def test_summary_month(capsys) -> None:
+    main.cfg.datafile = "2023-01-timesheet.json"
+    with freeze_time("2023-01-03"):  # A Tuesday
+        handle_command("start 08:00")
+        handle_command("lunch")
+        handle_command("stop 16:30")
+    # Wednesday is intentionally excluded
+    with freeze_time("2023-01-05"):  # A Thursday
+        handle_command("start 08:02")
+        handle_command("lunch")
+        handle_command("stop 16:30")
+    with freeze_time("2023-01-07"):  # A Saturday
+        handle_command("timeoff 8")
+        handle_command("start 10:00")
+        handle_command("stop 11:30")
+    with freeze_time("2023-01-09"):  # Monday the next week
+        handle_command("start 08:02")
+        handle_command("lunch 25")
+        handle_command("stop 14:21")
+        handle_command("start 15:01")
+        handle_command("stop 17:27")
+        capsys.readouterr()
+
+        handle_command("summary")  # Act
+    captured = capsys.readouterr()
+    write_captured_output(captured.out)
+
+    expected = [
+        "date       | worked time | daily flex |",
+        "2023-01-01 | ---         | ---        |",
+        "2023-01-02 | ---         | ---        |",
+        "2023-01-03 | 8h 0min     | 0min       |",
+        "2023-01-04 | ---         | ---        |",
+        "2023-01-05 | 7h 58min    | -2min      |",
+        "2023-01-06 | ---         | ---        |",
+        "2023-01-07 | 1h 30min    | 1h 30min   |",
+        "2023-01-08 | ---         | ---        |",
+        "2023-01-09 | 8h 20min    | 20min      |",
+        "---",
+        "Worked 25h 48min of 24 hour(s) => monthly flex: 1h 48min",
+    ]
+    assert "\n".join(expected) in captured.out
+
+
 def test_timeoff_half_day() -> None:
     main.cfg.datafile = "2021-04-timesheet.json"
     with freeze_time("2021-04-02"):  # A Friday

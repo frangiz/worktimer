@@ -128,6 +128,7 @@ class Timesheet(BaseModel):
 class ViewSpans(Enum):
     TODAY = auto()
     WEEK = auto()
+    MONTH = auto()
 
 
 class RecalcAction(Enum):
@@ -179,6 +180,8 @@ def handle_command(cmd: str) -> None:
             view(ViewSpans[params[0].upper()])
         else:
             view()
+    elif cmd == "summary":
+        summary()
     elif cmd == "recalc":
         if params:
             recalc(RecalcAction[params[0].upper()])
@@ -291,6 +294,37 @@ def view(viewSpan: ViewSpans = ViewSpans.TODAY) -> None:
         _print_footer(days_to_show)
 
 
+def summary(viewSpan: ViewSpans = ViewSpans.MONTH) -> None:
+    ts = load_timesheet()
+    days: list[Day] = []
+    for n in range(date.today().day - 1, -1, -1):
+        days.append(ts.get_day((date.today() - timedelta(days=n)).isoformat()))
+    print("date       | worked time | daily flex |")
+    for d in days:
+        the_date = d.this_date.isoformat()
+        worked_time = (
+            fmt_mins(d.worked_time, expand=True) if d.worked_time > 0 else "---"
+        )
+        daily_flex = fmt_mins(d.flex_minutes) if d.worked_time > 0 else "---"
+        print(f"{the_date:<11}| {worked_time:<12}| {daily_flex:<11}|")
+    print("---")
+    expected_worked_hours_sum = (
+        sum(
+            (cfg.workhours_one_day * 60 - d.time_off_minutes)
+            for d in days
+            if d.worked_time > 0
+        )
+        // 60
+    )
+    print(
+        (
+            f"Worked {fmt_mins(sum(d.worked_time for d in days))} "
+            f"of {expected_worked_hours_sum} hour(s) => "
+            f"monthly flex: {fmt_mins(sum(d.flex_minutes for d in days))}"
+        )
+    )
+
+
 def recalc(action: RecalcAction = RecalcAction.FLEX) -> None:
     if action == RecalcAction.FLEX:
         for f in cfg.datafile_dir.glob("*-timesheet.json"):
@@ -329,7 +363,8 @@ def print_menu():
     print("stop [hh:mm]")
     print("lunch [n]")
     print("edit")
-    print("view [TODAY]")
+    print("view [TODAY|WEEK]")
+    print("summary [MONTH]")
     print("recalc [FLEX]")
     print("timeoff [hours]")
 
