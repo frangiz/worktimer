@@ -1,9 +1,10 @@
 import contextlib
 import subprocess
+from collections import defaultdict
 from datetime import date, datetime, time, timedelta
 from enum import Enum, auto
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import DefaultDict, Dict, List, Optional
 
 from dotenv import dotenv_values
 from pydantic import BaseModel, Field
@@ -299,15 +300,24 @@ def summary(viewSpan: ViewSpans = ViewSpans.MONTH) -> None:
     days: List[Day] = []
     for n in range(date.today().day - 1, -1, -1):
         days.append(ts.get_day((date.today() - timedelta(days=n)).isoformat()))
-    print("date       | worked time | daily flex |")
+    print("| week | date       | worked time | daily flex |")
     for d in days:
         the_date = d.this_date.isoformat()
-        worked_time = (
-            fmt_mins(d.worked_time, expand=True) if d.worked_time > 0 else "---"
-        )
-        daily_flex = fmt_mins(d.flex_minutes) if d.worked_time > 0 else "---"
-        print(f"{the_date:<11}| {worked_time:<12}| {daily_flex:<11}|")
+        worked_time = fmt_mins(d.worked_time, expand=True) if d.worked_time > 0 else ""
+        daily_flex = fmt_mins(d.flex_minutes) if d.worked_time > 0 else ""
+        week = d.this_date.isocalendar().week if d.this_date.isoweekday() == 1 else ""
+        print(f"|  {week:>2}  | {the_date:<11}| {worked_time:<12}| {daily_flex:<11}|")
     print("---")
+
+    # summarize weeks
+    weekly_summary: DefaultDict[int, int] = defaultdict(int)
+    for d in days:
+        if d.worked_time > 0:
+            weekly_summary[d.this_date.isocalendar().week] += d.worked_time
+    for week, weekly_time in weekly_summary.items():
+        print(f"week {week}: {fmt_mins(weekly_time)}")
+
+    # summarize month
     expected_worked_hours_sum = (
         sum(
             (cfg.workhours_one_day * 60 - d.time_off_minutes)
