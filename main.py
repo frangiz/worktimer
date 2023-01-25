@@ -305,7 +305,7 @@ def summary(viewSpan: ViewSpans = ViewSpans.MONTH) -> None:
         the_date = d.this_date.isoformat()
         worked_time = fmt_mins(d.worked_time, expand=True) if d.worked_time > 0 else ""
         daily_flex = fmt_mins(d.flex_minutes) if d.worked_time > 0 else ""
-        week = d.this_date.isocalendar().week if d.this_date.isoweekday() == 1 else ""
+        week = d.this_date.isocalendar()[1] if d.this_date.isoweekday() == 1 else ""
         print(f"|  {week:>2}  | {the_date:<11}| {worked_time:<12}| {daily_flex:<11}|")
     print("---")
 
@@ -313,7 +313,7 @@ def summary(viewSpan: ViewSpans = ViewSpans.MONTH) -> None:
     weekly_summary: DefaultDict[int, int] = defaultdict(int)
     for d in days:
         if d.worked_time > 0:
-            weekly_summary[d.this_date.isocalendar().week] += d.worked_time
+            weekly_summary[d.this_date.isocalendar()[1]] += d.worked_time
     for week, weekly_time in weekly_summary.items():
         print(f"week {week}: {fmt_mins(weekly_time)}")
 
