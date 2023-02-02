@@ -8,4 +8,4 @@ freezegun==1.2.2
 pytest-mock==3.10.0
 
 # formatting
-pre-commit==2.21.0
+pre-commit==3.0.3
