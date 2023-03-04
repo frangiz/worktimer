@@ -15,7 +15,6 @@ class Config:
     datafile_dir: Path
     datafile: str
     workhours_one_day: int
-    notepadpp_path: str
 
     def __init__(self) -> None:
         self.reload()
@@ -29,7 +28,6 @@ class Config:
         )
 
         self.workhours_one_day = 8
-        self.notepadpp_path = r"C:\Program Files (x86)\Notepad++\notepad++.exe"
 
         # Override default values
         config = dotenv_values("config.env")
@@ -276,7 +274,7 @@ def lunch(lunch_mins: int) -> None:
 
 
 def edit() -> None:
-    subprocess.call([cfg.notepadpp_path, cfg.datafile_dir.joinpath(cfg.datafile)])
+    subprocess.call(["vim", cfg.datafile_dir.joinpath(cfg.datafile)])
 
 
 def view(viewSpan: ViewSpans = ViewSpans.TODAY) -> None:
