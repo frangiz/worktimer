@@ -3,7 +3,7 @@ pydantic==1.10.7
 
 # test
 pytest==7.3.0
-pytest-cov==4.0.0
+pytest-cov==4.1.0
 freezegun==1.2.2
 pytest-mock==3.10.0
 
