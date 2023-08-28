@@ -53,9 +53,9 @@ def time_diff(t1: Optional[time], t2: Optional[time]) -> int:
 
 
 class WorkBlock(BaseModel):
-    start: Optional[time]
-    stop: Optional[time]
-    comment: Optional[str]
+    start: Optional[time] = None
+    stop: Optional[time] = None
+    comment: Optional[str] = None
 
     @property
     def worked_time(self) -> int:
@@ -147,7 +147,7 @@ def save_timesheet(ts: Timesheet, datafile: Optional[str] = None) -> None:
     if datafile is None:
         datafile = cfg.datafile
     with open(cfg.datafile_dir.joinpath(datafile), "w+", encoding="utf-8") as f:
-        f.write(ts.json(ensure_ascii=False, indent=4, sort_keys=True))
+        f.write(ts.model_dump_json(indent=4))
 
 
 def handle_command(cmd: str) -> None:
@@ -307,7 +307,9 @@ def summary(viewSpan: ViewSpans = ViewSpans.MONTH) -> None:
         week = d.this_date.isocalendar()[1] if d.this_date.isoweekday() == 1 else ""
         if d.this_date.isoweekday() == 1:
             print("|- - - |- - - - - - |- - - - - - -|- - - - - - |")
-        print(f"|  {week:>2}  | {the_date:<11}| {worked_time:<12}| {daily_flex:<11}|")
+        print(
+            f"|  {week:>2}  | {the_date:<11}| {worked_time:<12}| {daily_flex:<11}|"  # noqa: E221,E222,E501
+        )
     print("---")
 
     # summarize weeks
