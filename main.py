@@ -437,7 +437,7 @@ def run():
         print("Running in dev mode.")
 
     ts = load_timesheet()
-    print(f"Total flex {total_flex_as_str()}")
+    print(f"Monthly flex: {fmt_mins(sum(d.flex_minutes for d in ts.days.values()))} \n")
     if len(ts.today.work_blocks) > 0:
         print(f"You started last work block @ {ts.today.last_work_block.start}")
 
