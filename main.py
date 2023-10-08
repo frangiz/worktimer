@@ -106,6 +106,7 @@ class Day(BaseModel):
 
 class Timesheet(BaseModel):
     days: Dict[str, Day] = Field(default_factory=lambda: {})
+    target_hours: int = 167
 
     @property
     def monthly_flex(self) -> int:
@@ -189,6 +190,9 @@ def handle_command(cmd: str) -> None:
     elif cmd == "timeoff":
         if params:
             set_time_off(int(params[0]) * 60)
+    elif cmd == "target_hours":
+        if params:
+            set_target_hours(int(params[0]))
     elif cmd == "help":
         print("help you say?")
 
@@ -336,6 +340,7 @@ def summary(viewSpan: ViewSpans = ViewSpans.MONTH) -> None:
             f"monthly flex: {fmt_mins(sum(d.flex_minutes for d in days))}"
         )
     )
+    print(f"Target hours for month: {ts.target_hours}")
 
 
 def recalc(action: RecalcAction = RecalcAction.FLEX) -> None:
@@ -359,6 +364,15 @@ def set_time_off(time_off_mins: int) -> None:
     print(f"Setting timeoff to {fmt_mins(time_off_mins)}")
 
 
+def set_target_hours(target_hours: int) -> None:
+    if target_hours < 0:
+        raise ValueError("Invalid target_hours value, must be an int greater than 0.")
+    ts = load_timesheet()
+    ts.target_hours = target_hours
+    save_timesheet(ts)
+    print(f"Setting target hours to {target_hours}")
+
+
 def calc_total_flex() -> int:
     return sum(
         load_timesheet(f.name).monthly_flex
@@ -380,6 +394,7 @@ def print_menu():
     print("summary [MONTH]")
     print("recalc [FLEX]")
     print("timeoff [hours]")
+    print("target_hours [hours]")
 
 
 def print_days(days: List[Day]) -> None:
@@ -437,6 +452,10 @@ def run():
         print("Running in dev mode.")
 
     ts = load_timesheet()
+    print(
+        f"Worked {fmt_mins(sum(d.worked_time for d in ts.days.values()), expand=True)}"
+        f" of your {ts.target_hours} target hours for this month"
+    )
     print(f"Monthly flex: {fmt_mins(sum(d.flex_minutes for d in ts.days.values()))} \n")
     if len(ts.today.work_blocks) > 0:
         print(f"You started last work block @ {ts.today.last_work_block.start}")
