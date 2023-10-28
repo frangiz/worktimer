@@ -141,7 +141,9 @@ def load_timesheet(datafile: Optional[str] = None) -> Timesheet:
     if not cfg.datafile_dir.joinpath(datafile).is_file():
         empty_ts = Timesheet()
         save_timesheet(empty_ts)
-    return Timesheet.parse_file(cfg.datafile_dir.joinpath(datafile))
+    with open(cfg.datafile_dir.joinpath(datafile), "r") as f:
+        json_content = f.read()
+    return Timesheet.model_validate_json(json_content)
 
 
 def save_timesheet(ts: Timesheet, datafile: Optional[str] = None) -> None:
