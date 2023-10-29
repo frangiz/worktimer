@@ -1,0 +1,406 @@
+import subprocess
+from collections import defaultdict
+from datetime import date, datetime, time, timedelta
+from enum import Enum, auto
+from typing import Callable, DefaultDict, Dict, List, Optional
+
+from pydantic import BaseModel, Field
+
+from src.config import Config
+
+
+cfg = Config()
+
+
+def _today_iso_format() -> str:
+    return date.today().isoformat()
+
+
+def time_diff(t1: Optional[time], t2: Optional[time]) -> int:
+    if t1 is None or t2 is None:
+        return 0
+    datetime1 = datetime.combine(datetime.min.date(), t1)
+    datetime2 = datetime.combine(datetime.min.date(), t2)
+    return int((datetime1 - datetime2).total_seconds()) // 60
+
+
+class WorkBlock(BaseModel):
+    start: Optional[time] = None
+    stop: Optional[time] = None
+    comment: Optional[str] = None
+
+    @property
+    def worked_time(self) -> int:
+        if not self.started() or not self.stopped():
+            return 0
+        return time_diff(self.stop, self.start)
+
+    def started(self) -> bool:
+        return self.start is not None
+
+    def stopped(self) -> bool:
+        return self.stop is not None
+
+
+class Day(BaseModel):
+    this_date: date
+    lunch: int = 0
+    flex_minutes: int = 0
+    work_blocks: List[WorkBlock] = Field(default_factory=lambda: [])
+    time_off_minutes: int = 0
+
+    @property
+    def last_work_block(self) -> WorkBlock:
+        if len(self.work_blocks) == 0:
+            self.work_blocks.append(WorkBlock())
+        return self.work_blocks[-1]
+
+    @property
+    def worked_time(self) -> int:
+        worked_mins = sum(wt.worked_time for wt in self.work_blocks)
+        return 0 if worked_mins == 0 else worked_mins - self.lunch
+
+    def recalc_flex(self) -> None:
+        expected_worktime_in_mins = cfg.workhours_one_day * 60
+        time_off_minutes = self.time_off_minutes
+        weekday = self.this_date.isoweekday()
+        # Check if weekend
+        if weekday in (6, 7):
+            expected_worktime_in_mins = 0
+            time_off_minutes = 0
+        if len(self.work_blocks) == 1 and not self.last_work_block.stopped():
+            self.flex_minutes = 0
+        else:
+            self.flex_minutes = (
+                self.worked_time - expected_worktime_in_mins + time_off_minutes
+            )
+
+
+class Timesheet(BaseModel):
+    days: Dict[str, Day] = Field(default_factory=lambda: {})
+    target_hours: int = 167
+
+    @property
+    def monthly_flex(self) -> int:
+        return sum(d.flex_minutes for d in self.days.values())
+
+    @property
+    def today(self) -> Day:
+        today = _today_iso_format()
+        if today not in self.days:
+            self.days[today] = Day(this_date=datetime.now().date())
+        return self.days[today]
+
+    def get_day(self, key: str) -> Day:
+        if key not in self.days:
+            self.days[key] = Day(this_date=date.fromisoformat(key))
+        return self.days[key]
+
+
+class ViewSpans(Enum):
+    TODAY = auto()
+    WEEK = auto()
+    MONTH = auto()
+
+
+class RecalcAction(Enum):
+    FLEX = 1
+
+
+def load_timesheet(datafile: Optional[str] = None) -> Timesheet:
+    if datafile is None:
+        datafile = cfg.datafile
+    if not cfg.datafile_dir.joinpath(datafile).is_file():
+        empty_ts = Timesheet()
+        save_timesheet(empty_ts)
+    with open(cfg.datafile_dir.joinpath(datafile), "r") as f:
+        json_content = f.read()
+    return Timesheet.model_validate_json(json_content)
+
+
+def save_timesheet(ts: Timesheet, datafile: Optional[str] = None) -> None:
+    if datafile is None:
+        datafile = cfg.datafile
+    with open(cfg.datafile_dir.joinpath(datafile), "w+", encoding="utf-8") as f:
+        f.write(ts.model_dump_json(indent=4))
+
+
+def handle_time_input(params: List[str]) -> datetime:
+    if params:
+        h, m = map(int, params[0].split(":"))
+        return datetime.now().replace(hour=h, minute=m, second=0, microsecond=0)
+    else:
+        return datetime.now().replace(second=0, microsecond=0)
+
+
+def handle_command(cmd: str) -> None:
+    cmd, *params = cmd.split()
+    commands: Dict[str, Callable[[], None]] = {
+        "start": lambda: start(handle_time_input(params)),
+        "stop": lambda: stop(
+            handle_time_input(params), " ".join(params[1:]) if len(params) > 1 else None
+        ),
+        "lunch": lambda: lunch(int(params[0]) if params else 30),
+        "edit": edit,
+        "view": lambda: view(
+            ViewSpans[params[0].upper()] if params else ViewSpans.TODAY
+        ),
+        "summary": summary,
+        "recalc": lambda: recalc(
+            RecalcAction[params[0].upper()] if params else RecalcAction.FLEX
+        ),
+        "timeoff": lambda: set_time_off(int(params[0]) * 60 if params else 0),
+        "target_hours": lambda: set_target_hours(int(params[0]) if params else 0),
+        "help": lambda: print("help not yet implemented."),
+    }
+    if cmd in commands:
+        commands[cmd]()
+
+
+def _print_estimated_endtime_for_today(
+    work_blocks: List[WorkBlock], lunch: int = 30
+) -> None:
+    mins_left_to_work = (
+        (cfg.workhours_one_day * 60) + lunch - sum(wt.worked_time for wt in work_blocks)
+    )
+    if not work_blocks[-1].start:
+        return
+    work_end_with_lunch = (
+        (
+            datetime.combine(date.today(), work_blocks[-1].start)
+            + timedelta(minutes=mins_left_to_work)
+        )
+        .time()
+        .replace(second=0, microsecond=0)
+    )
+    print(
+        f"Estimated end time for today with {lunch} min lunch is {work_end_with_lunch}"
+    )
+
+
+def start(start_time: datetime) -> None:
+    ts = load_timesheet()
+    last_wb = ts.today.last_work_block
+    if last_wb.started() and not last_wb.stopped():
+        print("Workblock already started, stop it before starting another one")
+        return
+
+    if last_wb.stopped():
+        ts.today.work_blocks.append(WorkBlock(start=start_time.time()))
+    else:
+        last_wb.start = start_time.time()
+
+    print(f"Starting at {start_time}")
+    save_timesheet(ts)
+    if ts.today.lunch > 0:
+        _print_estimated_endtime_for_today(ts.today.work_blocks, ts.today.lunch)
+    else:
+        _print_estimated_endtime_for_today(ts.today.work_blocks)
+
+
+def stop(stop_time: datetime, comment: Optional[str] = None) -> None:
+    ts = load_timesheet()
+    if not ts.today.last_work_block.started():
+        print("Could not stop workblock, is your last workblock started?")
+        return
+    if ts.today.last_work_block.stopped():
+        return
+    print(f"Stopping at {stop_time}")
+
+    ts.today.last_work_block.stop = stop_time.time()
+    ts.today.last_work_block.comment = comment
+    ts.today.recalc_flex()
+
+    flex_hours = abs(ts.today.flex_minutes) // 60
+    flex_mins = abs(ts.today.flex_minutes) % 60
+    if ts.today.flex_minutes >= 0:
+        print(f"Flex for today: {flex_hours} hours {flex_mins} mins")
+    else:
+        print(f"Flex for today is negative: {flex_hours} hours {flex_mins} mins")
+    save_timesheet(ts)
+
+
+def lunch(lunch_mins: int) -> None:
+    ts = load_timesheet()
+
+    if len(ts.today.work_blocks) == 0 or not ts.today.last_work_block.started():
+        print("Could not find today in timesheet, did you start the day?")
+        return
+    if ts.today.lunch != 0:
+        return
+
+    _print_estimated_endtime_for_today(ts.today.work_blocks, lunch_mins)
+
+    ts.today.lunch = lunch_mins
+    ts.today.recalc_flex()
+    save_timesheet(ts)
+    print(f"Added {lunch_mins} mins as lunch")
+
+
+def edit() -> None:
+    subprocess.call(["vim", cfg.datafile_dir.joinpath(cfg.datafile)])
+
+
+def view(viewSpan: ViewSpans = ViewSpans.TODAY) -> None:
+    ts = load_timesheet()
+    days_to_show = []
+    if viewSpan == ViewSpans.TODAY:
+        days_to_show.append(ts.today)
+    elif viewSpan == ViewSpans.WEEK:
+        _, _, weekday = date.today().isocalendar()
+        for n in range(weekday - 1, -1, -1):
+            days_to_show.append(
+                ts.get_day((date.today() - timedelta(days=n)).isoformat())
+            )
+    print_days(days_to_show)
+    if viewSpan == ViewSpans.WEEK:
+        _print_footer(days_to_show)
+
+
+def summary(viewSpan: ViewSpans = ViewSpans.MONTH) -> None:
+    ts = load_timesheet()
+    days: List[Day] = []
+    for n in range(date.today().day - 1, -1, -1):
+        days.append(ts.get_day((date.today() - timedelta(days=n)).isoformat()))
+    print("| week | date       | worked time | daily flex |")
+    print("|- - - |- - - - - - |- - - - - - -|- - - - - - |")
+    for d in days:
+        the_date = d.this_date.isoformat()
+        worked_time = fmt_mins(d.worked_time, expand=True) if d.worked_time > 0 else ""
+        daily_flex = fmt_mins(d.flex_minutes) if d.worked_time > 0 else ""
+        week = d.this_date.isocalendar()[1] if d.this_date.isoweekday() == 1 else ""
+        if d.this_date.isoweekday() == 1:
+            print("|- - - |- - - - - - |- - - - - - -|- - - - - - |")
+        print(
+            f"|  {week:>2}  | {the_date:<11}| {worked_time:<12}| {daily_flex:<11}|"  # noqa: E221,E222,E501
+        )
+    print("---")
+
+    # summarize weeks
+    weekly_summary: DefaultDict[int, int] = defaultdict(int)
+    for d in days:
+        if d.worked_time > 0:
+            weekly_summary[d.this_date.isocalendar()[1]] += d.worked_time
+    for week, weekly_time in weekly_summary.items():
+        print(f"week {week}: {fmt_mins(weekly_time)}")
+
+    # summarize month
+    expected_worked_hours_sum = (
+        sum(
+            (cfg.workhours_one_day * 60 - d.time_off_minutes)
+            for d in days
+            if d.worked_time > 0
+        )
+        // 60
+    )
+    print(
+        (
+            f"Worked {fmt_mins(sum(d.worked_time for d in days))} "
+            f"of {expected_worked_hours_sum} hour(s) => "
+            f"monthly flex: {fmt_mins(sum(d.flex_minutes for d in days))}"
+        )
+    )
+    print(f"Target hours for month: {ts.target_hours}")
+
+
+def recalc(action: RecalcAction = RecalcAction.FLEX) -> None:
+    if action == RecalcAction.FLEX:
+        for f in cfg.datafile_dir.glob("*-timesheet.json"):
+            ts = load_timesheet(f.name)
+            for _, v in ts.days.items():
+                v.recalc_flex()
+            save_timesheet(ts, f.name)
+
+
+def set_time_off(time_off_mins: int) -> None:
+    if time_off_mins < 0 or time_off_mins > 8 * 60:
+        raise ValueError(
+            "Invalid timeoff value, must be an int between 0 and 8 inclusive."
+        )
+    ts = load_timesheet()
+    ts.today.time_off_minutes = time_off_mins
+    ts.today.recalc_flex()
+    save_timesheet(ts)
+    print(f"Setting timeoff to {fmt_mins(time_off_mins)}")
+
+
+def set_target_hours(target_hours: int) -> None:
+    if target_hours < 0:
+        raise ValueError("Invalid target_hours value, must be an int greater than 0.")
+    ts = load_timesheet()
+    ts.target_hours = target_hours
+    save_timesheet(ts)
+    print(f"Setting target hours to {target_hours}")
+
+
+def calc_total_flex() -> int:
+    return sum(
+        load_timesheet(f.name).monthly_flex
+        for f in cfg.datafile_dir.glob("*-timesheet.json")
+    )
+
+
+def total_flex_as_str() -> str:
+    return fmt_mins(calc_total_flex())
+
+
+def print_menu():
+    print("-- commands --")
+    print("start [hh:mm]")
+    print("stop [hh:mm]")
+    print("lunch [n]")
+    print("edit")
+    print("view [TODAY|WEEK]")
+    print("summary [MONTH]")
+    print("recalc [FLEX]")
+    print("timeoff [hours]")
+    print("target_hours [hours]")
+
+
+def print_days(days: List[Day]) -> None:
+    if len(days) == 1:
+        _print_day(days[0])
+        return
+    for day in days[:-1]:
+        _print_day(day)
+        print("")
+    _print_day(days[-1])
+
+
+def _print_day(day: Day) -> None:
+    header = " | ".join(
+        [
+            day.this_date.isoformat(),
+            f"worked time: {fmt_mins(day.worked_time, expand=True)}",
+            f"lunch: {fmt_mins(day.lunch)}",
+            f"daily flex: {fmt_mins(day.flex_minutes)}",
+        ]
+    )
+    print(header)
+    _print_work_blocks(day.work_blocks)
+
+
+def _print_footer(days: List[Day]) -> None:
+    weekly_flex = sum(d.flex_minutes for d in days)
+    print("---")
+    print(f"Weekly flex: {fmt_mins(weekly_flex)}")
+
+
+def _print_work_blocks(blocks: List[WorkBlock]) -> None:
+    for block in blocks:
+        block_start = block.start.isoformat()[:5] if block.start is not None else ""
+        block_stop = block.stop.isoformat()[:5] if block.stop is not None else ""
+        if not block.stopped():
+            print(f"  {block_start}-")
+        else:
+            print(f"  {block_start}-{block_stop} => {fmt_mins(block.worked_time)}")
+            if block.comment:
+                print(f"    {block.comment}")
+
+
+def fmt_mins(mins: int, expand: bool = False) -> str:
+    sign = "" if mins >= 0 else "-"
+    mins = abs(mins)
+    if mins < 60 and not expand:
+        return f"{sign}{mins}min"
+    return f"{sign}{mins // 60}h {mins % 60}min"
