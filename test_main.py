@@ -504,3 +504,44 @@ def test_worked_time_with_a_block_not_stopped() -> None:
 
     ts = load_timesheet()
     assert ts.today.worked_time == 20
+
+
+def test_comment_with_an_empty_comment() -> None:
+    handle_command("start 08:10")
+    handle_command("comment ")
+
+    ts = load_timesheet()
+    assert ts.today.last_work_block.comment is None
+
+
+def test_comment_with_a_block_not_stopped() -> None:
+    handle_command("start 08:10")
+    handle_command("comment some comment added to this workblock")
+
+    ts = load_timesheet()
+    assert ts.today.last_work_block.comment == "some comment added to this workblock"
+
+
+def test_comment_overwrites_previous_comment() -> None:
+    handle_command("start 08:10")
+    handle_command("comment some comment added to this workblock")
+    handle_command("comment new fancy comment")
+
+    ts = load_timesheet()
+    assert ts.today.last_work_block.comment == "new fancy comment"
+
+
+def test_comment_with_workblock() -> None:
+    handle_command("comment some comment added to this workblock")
+
+    ts = load_timesheet()
+    assert ts.today.last_work_block.comment is None
+
+
+def test_comment_with_no_open_workblock() -> None:
+    handle_command("start 08:10")
+    handle_command("stop 08:15")
+    handle_command("comment some comment added to this workblock")
+
+    ts = load_timesheet()
+    assert ts.today.last_work_block.comment is None

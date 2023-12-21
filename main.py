@@ -141,7 +141,9 @@ def load_timesheet(datafile: Optional[str] = None) -> Timesheet:
     if not cfg.datafile_dir.joinpath(datafile).is_file():
         empty_ts = Timesheet()
         save_timesheet(empty_ts)
-    return Timesheet.parse_file(cfg.datafile_dir.joinpath(datafile))
+    with open(cfg.datafile_dir.joinpath(datafile), "r") as f:
+        json_content = f.read()
+    return Timesheet.model_validate_json(json_content)
 
 
 def save_timesheet(ts: Timesheet, datafile: Optional[str] = None) -> None:
@@ -193,6 +195,8 @@ def handle_command(cmd: str) -> None:
     elif cmd == "target_hours":
         if params:
             set_target_hours(int(params[0]))
+    elif cmd == "comment":
+        set_comment(" ".join(params) if params else None)
     elif cmd == "help":
         print("help you say?")
 
@@ -371,6 +375,15 @@ def set_target_hours(target_hours: int) -> None:
     ts.target_hours = target_hours
     save_timesheet(ts)
     print(f"Setting target hours to {target_hours}")
+
+
+def set_comment(text: Optional[str]) -> None:
+    ts = load_timesheet()
+    if ts.today.last_work_block.started() and not ts.today.last_work_block.stopped():
+        ts.today.last_work_block.comment = text
+    else:
+        print("Cannot set comment for workblock not started")
+    save_timesheet(ts)
 
 
 def calc_total_flex() -> int:
