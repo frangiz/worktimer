@@ -5,5 +5,5 @@ A small and simple tool to keep track of the time spent while at work. Calculate
 
 ## Getting started
 * Clone the repository
-* Install dependencies with `pip install -r requirements.txt`
+* Setup the environment with `make dev`
 * Run the application with `python main.py`
