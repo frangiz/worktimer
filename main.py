@@ -9,6 +9,8 @@ from typing import DefaultDict, Dict, List, Optional
 from dotenv import dotenv_values
 from pydantic import BaseModel, Field
 
+DEFAULT_LUNCH_DURATION = 30
+
 
 class Config:
     mode: str
@@ -153,52 +155,45 @@ def save_timesheet(ts: Timesheet, datafile: Optional[str] = None) -> None:
         f.write(ts.model_dump_json(indent=4))
 
 
-def handle_command(cmd: str) -> None:
-    cmd, *params = cmd.split()
-    if cmd == "start":
-        if params:
-            h, m = map(int, params[0].split(":"))
-            time = datetime.now().replace(hour=h, minute=m, second=0, microsecond=0)
-            start(time)
-        else:
-            start(datetime.now().replace(second=0, microsecond=0))
-    elif cmd == "stop":
+def get_time_and_comment(params):
+    try:
         if params:
             h, m = map(int, params[0].split(":"))
             time = datetime.now().replace(hour=h, minute=m, second=0, microsecond=0)
             comment = " ".join(params[1:]) if len(params) > 1 else None
-            stop(time, comment)
         else:
-            stop(datetime.now().replace(second=0, microsecond=0))
-    elif cmd == "lunch":
-        if params:
-            lunch(int(params[0]))
-        else:
-            lunch(30)
-    elif cmd == "edit":
-        edit()
-    elif cmd == "view":
-        if params:
-            view(ViewSpans[params[0].upper()])
-        else:
-            view()
-    elif cmd == "summary":
-        summary()
-    elif cmd == "recalc":
-        if params:
-            recalc(RecalcAction[params[0].upper()])
-        else:
-            recalc()
-    elif cmd == "timeoff":
-        if params:
-            set_time_off(int(params[0]) * 60)
-    elif cmd == "target_hours":
-        if params:
-            set_target_hours(int(params[0]))
-    elif cmd == "comment":
-        set_comment(" ".join(params) if params else None)
-    elif cmd == "help":
-        print("help you say?")
+            time = datetime.now().replace(second=0, microsecond=0)
+            comment = None
+        return time, comment
+    except ValueError:
+        print("Invalid time format. Expeted format is hh:mm")
+        return None, None
+
+
+def handle_command(cmd: str) -> None:
+    command_map = {
+        "start": lambda params: start(get_time_and_comment(params)[0]),
+        "stop": lambda params: stop(*get_time_and_comment(params)),
+        "lunch": lambda params: lunch(int(params[0]))
+        if params
+        else lunch(DEFAULT_LUNCH_DURATION),
+        "edit": lambda _: edit(),
+        "view": lambda params: view(ViewSpans[params[0].upper()]) if params else view(),
+        "summary": lambda _: summary(),
+        "recalc": lambda params: recalc(RecalcAction[params[0].upper()])
+        if params
+        else recalc(),
+        "timeoff": lambda params: set_time_off(int(params[0]) * 60),
+        "target_hours": lambda params: set_target_hours(int(params[0])),
+        "comment": lambda params: set_comment(" ".join(params) if params else None),
+    }
+
+    cmd, *params = cmd.split()
+
+    if cmd in command_map:
+        command_map[cmd](params)
+    else:
+        print(f"Unknown command: {cmd}")
 
 
 def _print_estimated_endtime_for_today(
