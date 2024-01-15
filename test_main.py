@@ -336,6 +336,54 @@ def test_view_week(capsys) -> None:
     assert "\n".join(expected) in captured.out
 
 
+def test_view_prev_week(capsys) -> None:
+    main.cfg.datafile = "2020-11-timesheet.json"
+    with freeze_time("2020-11-22"):  # A Sunday the week before
+        handle_command("start 08:00")
+        handle_command("lunch")
+        handle_command("stop 16:30")
+    # The Monday is intentionally excluded
+    with freeze_time("2020-11-24"):  # A Tuesday
+        handle_command("start 08:02")
+        handle_command("lunch")
+        handle_command("stop 16:30")
+
+    with freeze_time("2020-11-25"):  # A Wednesday
+        handle_command("start 08:02")
+        handle_command("lunch 25")
+        handle_command("stop 14:21")
+        handle_command("start 15:01")
+        handle_command("stop 17:27")
+    # some time passes so it is the next week
+    with freeze_time("2020-11-30"):  # The Monday next week
+        capsys.readouterr()
+        handle_command("view prev_week")  # Act
+    captured = capsys.readouterr()
+    write_captured_output(captured.out)
+
+    expected = [
+        "2020-11-23 | worked time: 0h 0min | lunch: 0min | daily flex: 0min",
+        "",
+        "2020-11-24 | worked time: 7h 58min | lunch: 30min | daily flex: -2min",
+        "  08:02-16:30 => 8h 28min",
+        "",
+        "2020-11-25 | worked time: 8h 20min | lunch: 25min | daily flex: 20min",
+        "  08:02-14:21 => 6h 19min",
+        "  15:01-17:27 => 2h 26min",
+        "",
+        "2020-11-26 | worked time: 0h 0min | lunch: 0min | daily flex: 0min",
+        "",
+        "2020-11-27 | worked time: 0h 0min | lunch: 0min | daily flex: 0min",
+        "",
+        "2020-11-28 | worked time: 0h 0min | lunch: 0min | daily flex: 0min",
+        "",
+        "2020-11-29 | worked time: 0h 0min | lunch: 0min | daily flex: 0min",
+        "---",
+        "Weekly flex: 18min",
+    ]
+    assert "\n".join(expected) in captured.out
+
+
 def test_view_is_case_insensitive(capsys) -> None:
     main.cfg.datafile = "2020-11-timesheet.json"
     with freeze_time("2020-11-24"):  # A Tuesday

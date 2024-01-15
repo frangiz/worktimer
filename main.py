@@ -126,10 +126,20 @@ class Timesheet(BaseModel):
             self.days[key] = Day(this_date=date.fromisoformat(key))
         return self.days[key]
 
+    def get_days(self, start_date: str, end_date: str) -> List[Day]:
+        days: List[Day] = []
+        from_date = date.fromisoformat(start_date)
+        to_date = date.fromisoformat(end_date)
+        while from_date <= to_date:
+            days.append(self.get_day(from_date.isoformat()))
+            from_date += timedelta(days=1)
+        return days
+
 
 class ViewSpans(Enum):
     TODAY = auto()
     WEEK = auto()
+    PREV_WEEK = auto()
     MONTH = auto()
 
 
@@ -281,19 +291,20 @@ def edit() -> None:
 
 
 def view(viewSpan: ViewSpans = ViewSpans.TODAY) -> None:
-    ts = load_timesheet()
-    days_to_show = []
+    today = datetime.now().date()
     if viewSpan == ViewSpans.TODAY:
-        days_to_show.append(ts.today)
+        start_date = end_date = date.today()
     elif viewSpan == ViewSpans.WEEK:
-        _, _, weekday = date.today().isocalendar()
-        for n in range(weekday - 1, -1, -1):
-            days_to_show.append(
-                ts.get_day((date.today() - timedelta(days=n)).isoformat())
-            )
-    print_days(days_to_show)
-    if viewSpan == ViewSpans.WEEK:
-        _print_footer(days_to_show)
+        start_date = today - timedelta(days=today.isoweekday() - 1)
+        end_date = today
+    elif viewSpan == ViewSpans.PREV_WEEK:
+        start_date = today - timedelta(days=today.isoweekday() + 6)
+        end_date = start_date + timedelta(days=6)
+    entries = load_timesheet().get_days(start_date.isoformat(), end_date.isoformat())
+
+    print_days(entries)
+    if viewSpan in [ViewSpans.WEEK, ViewSpans.PREV_WEEK]:
+        _print_footer(entries)
 
 
 def summary(viewSpan: ViewSpans = ViewSpans.MONTH) -> None:
