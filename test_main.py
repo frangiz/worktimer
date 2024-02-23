@@ -1,6 +1,6 @@
 from datetime import time
 from pathlib import Path
-from typing import Any
+from typing import Any, List
 
 import pytest  # type: ignore
 from freezegun import freeze_time  # type: ignore
@@ -38,6 +38,8 @@ def teardown_function(func: Any) -> None:
 def write_captured_output(captured_output: str) -> None:
     Path(main.cfg.datafile_dir, "captured_output.txt").write_text(captured_output)
 
+def assert_captured_out_starts_with(expected: List[str], captured: Any) -> None:
+    assert expected == captured.out.split("\n")[:len(expected)]
 
 @pytest.mark.parametrize("stop_time,flex", [("16:30", 0), ("16:32", 2), ("16:27", -3)])
 def test_flex(capsys, stop_time, flex) -> None:
@@ -257,7 +259,7 @@ def test_view_today(capsys) -> None:
         "  08:02-14:21 => 6h 19min",
         "  15:01-17:27 => 2h 26min",
     ]
-    assert "\n".join(expected) in captured.out
+    assert_captured_out_starts_with(expected, captured)
 
 
 def test_view_today_with_workblock_not_ended(capsys) -> None:
@@ -273,7 +275,7 @@ def test_view_today_with_workblock_not_ended(capsys) -> None:
         "2020-11-24 | worked time: 0h 0min | lunch: 0min | daily flex: 0min",
         "  08:02-",
     ]
-    assert "\n".join(expected) in captured.out
+    assert_captured_out_starts_with(expected, captured)
 
 
 def test_view_today_with_a_comment(capsys) -> None:
@@ -294,7 +296,7 @@ def test_view_today_with_a_comment(capsys) -> None:
         "    Worked on solving the crazy hard bug.",
         "  10:00-11:30 => 1h 30min",
     ]
-    assert "\n".join(expected) in captured.out
+    assert_captured_out_starts_with(expected, captured)
 
 
 def test_view_week(capsys) -> None:
@@ -333,7 +335,7 @@ def test_view_week(capsys) -> None:
         "---",
         "Weekly flex: 18min",
     ]
-    assert "\n".join(expected) in captured.out
+    assert_captured_out_starts_with(expected, captured)
 
 
 def test_view_prev_week(capsys) -> None:
@@ -381,7 +383,7 @@ def test_view_prev_week(capsys) -> None:
         "---",
         "Weekly flex: 18min",
     ]
-    assert "\n".join(expected) in captured.out
+    assert_captured_out_starts_with(expected, captured)
 
 
 def test_view_is_case_insensitive(capsys) -> None:
@@ -397,7 +399,7 @@ def test_view_is_case_insensitive(capsys) -> None:
         "2020-11-24 | worked time: 0h 0min | lunch: 0min | daily flex: 0min",
         "  08:02-",
     ]
-    assert "\n".join(expected) in captured.out
+    assert_captured_out_starts_with(expected, captured)
 
 
 def test_summary_month(capsys) -> None:
@@ -446,7 +448,7 @@ def test_summary_month(capsys) -> None:
         "week 2: 8h 20min",
         "Worked 25h 48min of 24 hour(s) => monthly flex: 1h 48min",
     ]
-    assert "\n".join(expected) in captured.out
+    assert_captured_out_starts_with(expected, captured)
 
 
 def test_timeoff_half_day() -> None:
