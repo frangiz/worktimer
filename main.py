@@ -312,17 +312,18 @@ def summary(viewSpan: ViewSpans = ViewSpans.MONTH) -> None:
     days: List[Day] = []
     for n in range(date.today().day - 1, -1, -1):
         days.append(ts.get_day((date.today() - timedelta(days=n)).isoformat()))
-    print("| week | date       | worked time | daily flex |")
-    print("|- - - |- - - - - - |- - - - - - -|- - - - - - |")
+    print("| week | date       | worked time | daily flex | time off |")
+    print("|- - - |- - - - - - |- - - - - - -|- - - - - - |- - - - - |")
     for d in days:
         the_date = d.this_date.isoformat()
         worked_time = fmt_mins(d.worked_time, expand=True) if d.worked_time > 0 else ""
         daily_flex = fmt_mins(d.flex_minutes) if d.worked_time > 0 else ""
+        timeoff = fmt_mins(d.time_off_minutes) if d.time_off_minutes > 0 else ""
         week = d.this_date.isocalendar()[1] if d.this_date.isoweekday() == 1 else ""
         if d.this_date.isoweekday() == 1:
-            print("|- - - |- - - - - - |- - - - - - -|- - - - - - |")
+            print("|- - - |- - - - - - |- - - - - - -|- - - - - - |- - - - - |")
         print(
-            f"|  {week:>2}  | {the_date:<11}| {worked_time:<12}| {daily_flex:<11}|"  # noqa: E221,E222,E501
+            f"|  {week:>2}  | {the_date:<11}| {worked_time:<12}| {daily_flex:<11}| {timeoff:<9}|"  # noqa: E221,E222,E501
         )
     print("---")
 
