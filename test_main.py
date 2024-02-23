@@ -38,8 +38,10 @@ def teardown_function(func: Any) -> None:
 def write_captured_output(captured_output: str) -> None:
     Path(main.cfg.datafile_dir, "captured_output.txt").write_text(captured_output)
 
+
 def assert_captured_out_starts_with(expected: List[str], captured: Any) -> None:
-    assert expected == captured.out.split("\n")[:len(expected)]
+    assert expected == captured.out.split("\n")[: len(expected)]
+
 
 @pytest.mark.parametrize("stop_time,flex", [("16:30", 0), ("16:32", 2), ("16:27", -3)])
 def test_flex(capsys, stop_time, flex) -> None:
