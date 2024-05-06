@@ -4,6 +4,7 @@ from typing import Any, List
 
 import pytest  # type: ignore
 from freezegun import freeze_time  # type: ignore
+from typer.testing import CliRunner  # type: ignore
 
 import main
 from main import (
@@ -16,6 +17,7 @@ from main import (
     total_flex_as_str,
 )
 
+runner = CliRunner()
 
 def setup_module(module: Any) -> None:
     main.cfg.datafile_dir = Path("test_files")
@@ -46,9 +48,9 @@ def assert_captured_out_starts_with(expected: List[str], captured: Any) -> None:
 @pytest.mark.parametrize("stop_time,flex", [("16:30", 0), ("16:32", 2), ("16:27", -3)])
 def test_flex(capsys, stop_time, flex) -> None:
     with freeze_time("2020-09-23"):  # A Wednesday
-        handle_command("start 08:00")
-        handle_command("lunch")
-        handle_command(f"stop {stop_time}")
+        runner.invoke(main.app, ["start" "08:00"])
+        runner.invoke(main.app, ["lunch"])
+        runner.invoke(main.app, ["stop" f"{stop_time}"])
 
         ts = load_timesheet()
         assert ts.today.flex_minutes == flex

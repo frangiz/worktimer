@@ -10,10 +10,13 @@ from dotenv import dotenv_values
 from pydantic import BaseModel, Field
 from rich.console import Console
 from rich.table import Table
+import typer
+from typing_extensions import Annotated
 
 DEFAULT_LUNCH_DURATION = 30
 console = Console()
 
+app = typer.Typer()
 
 class Config:
     mode: str
@@ -167,7 +170,7 @@ def save_timesheet(ts: Timesheet, datafile: Optional[str] = None) -> None:
     with open(cfg.datafile_dir.joinpath(datafile), "w+", encoding="utf-8") as f:
         f.write(ts.model_dump_json(indent=4))
 
-
+# todo: remove
 def get_time_and_comment(params):
     try:
         if params:
@@ -185,8 +188,6 @@ def get_time_and_comment(params):
 
 def handle_command(cmd: str) -> None:
     command_map = {
-        "start": lambda params: start(get_time_and_comment(params)[0]),
-        "stop": lambda params: stop(*get_time_and_comment(params)),
         "lunch": lambda params: lunch(int(params[0]))
         if params
         else lunch(DEFAULT_LUNCH_DURATION),
@@ -230,7 +231,16 @@ def _print_estimated_endtime_for_today(
     )
 
 
-def start(start_time: datetime) -> None:
+def parse_time(time_str: str) -> datetime:
+    return datetime.strptime(time_str, "%H:%M")
+
+
+@app.command()
+def start(start_time: Annotated[Optional[datetime], typer.Argument(
+            help="Start time in format hh:mm. If not provided, current time is used.",
+            formats=["%H:%M"],
+            parser=parse_time)
+        ] = "") -> None:
     ts = load_timesheet()
     last_wb = ts.today.last_work_block
     if last_wb.started() and not last_wb.stopped():
@@ -250,7 +260,14 @@ def start(start_time: datetime) -> None:
         _print_estimated_endtime_for_today(ts.today.work_blocks)
 
 
-def stop(stop_time: datetime, comment: Optional[str] = None) -> None:
+@app.command()
+def stop(stop_time: Annotated[datetime, typer.Argument(
+            help="Stop time in format hh:mm.",
+            formats=["%H:%M"])
+        ],
+         comment: Annotated[str, typer.Argument(
+            help="Comment for the work block.",)
+        ] = None) -> None:
     ts = load_timesheet()
     if not ts.today.last_work_block.started():
         print("Could not stop workblock, is your last workblock started?")
@@ -272,7 +289,10 @@ def stop(stop_time: datetime, comment: Optional[str] = None) -> None:
     save_timesheet(ts)
 
 
-def lunch(lunch_mins: int) -> None:
+@app.command()
+def lunch(lunch_mins: Annotated[Optional[int], typer.Argument(
+        help="Lunch duration in minutes. Default is 30 minutes.",
+)] = 30) -> None:
     ts = load_timesheet()
 
     if len(ts.today.work_blocks) == 0 or not ts.today.last_work_block.started():
@@ -289,11 +309,15 @@ def lunch(lunch_mins: int) -> None:
     print(f"Added {lunch_mins} mins as lunch")
 
 
+@app.command()
 def edit() -> None:
     subprocess.call(["vim", cfg.datafile_dir.joinpath(cfg.datafile)])
 
 
-def view(viewSpan: ViewSpans = ViewSpans.TODAY) -> None:
+@app.command()
+def view(viewSpan: Annotated[ViewSpans, typer.Argument(
+    case_sensitive=False,
+)] = ViewSpans.TODAY) -> None:
     today = datetime.now().date()
     if viewSpan == ViewSpans.TODAY:
         start_date = end_date = date.today()
@@ -310,7 +334,10 @@ def view(viewSpan: ViewSpans = ViewSpans.TODAY) -> None:
         _print_footer(entries)
 
 
-def summary(viewSpan: ViewSpans = ViewSpans.MONTH) -> None:
+@app.command()
+def summary(viewSpan: Annotated[ViewSpans, typer.Argument(
+    case_sensitive=False,
+)] = ViewSpans.MONTH) -> None:
     ts = load_timesheet()
     days: List[Day] = []
     for n in range(date.today().day - 1, -1, -1):
@@ -362,7 +389,10 @@ def summary(viewSpan: ViewSpans = ViewSpans.MONTH) -> None:
     print(f"Target hours for month: {ts.target_hours}")
 
 
-def recalc(action: RecalcAction = RecalcAction.FLEX) -> None:
+@app.command()
+def recalc(action: Annotated[ViewSpans, typer.Argument(
+    case_sensitive=False,
+)] = RecalcAction.FLEX) -> None:
     if action == RecalcAction.FLEX:
         for f in cfg.datafile_dir.glob("*-timesheet.json"):
             ts = load_timesheet(f.name)
@@ -371,7 +401,10 @@ def recalc(action: RecalcAction = RecalcAction.FLEX) -> None:
             save_timesheet(ts, f.name)
 
 
-def set_time_off(time_off_mins: int) -> None:
+@app.command()
+def set_time_off(time_off_mins: Annotated[int, typer.Argument(
+    help="Time off in minutes.",
+)]) -> None:
     if time_off_mins < 0 or time_off_mins > 8 * 60:
         raise ValueError(
             "Invalid timeoff value, must be an int between 0 and 8 inclusive."
@@ -383,7 +416,10 @@ def set_time_off(time_off_mins: int) -> None:
     print(f"Setting timeoff to {fmt_mins(time_off_mins)}")
 
 
-def set_target_hours(target_hours: int) -> None:
+@app.command()
+def set_target_hours(target_hours: Annotated[int, typer.Argument(
+    help="Target hours for the month.",
+)]) -> None:
     if target_hours < 0:
         raise ValueError("Invalid target_hours value, must be an int greater than 0.")
     ts = load_timesheet()
@@ -392,7 +428,10 @@ def set_target_hours(target_hours: int) -> None:
     print(f"Setting target hours to {target_hours}")
 
 
-def set_comment(text: Optional[str]) -> None:
+@app.command()
+def set_comment(text: Annotated[Optional[str], typer.Argument(
+    help="Comment for the last work block. If empty, the previous comment is removed.",
+)]) -> None:
     ts = load_timesheet()
     if ts.today.last_work_block.started() and not ts.today.last_work_block.stopped():
         ts.today.last_work_block.comment = text
@@ -410,19 +449,6 @@ def calc_total_flex() -> int:
 
 def total_flex_as_str() -> str:
     return fmt_mins(calc_total_flex())
-
-
-def print_menu():
-    print("-- commands --")
-    print("start [hh:mm]")
-    print("stop [hh:mm]")
-    print("lunch [n]")
-    print("edit")
-    print("view [TODAY|WEEK]")
-    print("summary [MONTH]")
-    print("recalc [FLEX]")
-    print("timeoff [hours]")
-    print("target_hours [hours]")
 
 
 def print_days(days: List[Day]) -> None:
@@ -500,4 +526,4 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    app()
