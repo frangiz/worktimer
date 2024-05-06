@@ -7,3 +7,9 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-patch"]
+    groups:
+      all-dependencis:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "pre-commit"
