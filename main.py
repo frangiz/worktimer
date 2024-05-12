@@ -210,10 +210,13 @@ def handle_command(cmd: str) -> None:
 
 
 def _print_estimated_endtime_for_today(
-    work_blocks: List[WorkBlock], lunch: int = 30
+    work_blocks: List[WorkBlock], lunch: int = 30, timeoff: int = 0
 ) -> None:
     mins_left_to_work = (
-        (cfg.workhours_one_day * 60) + lunch - sum(wt.worked_time for wt in work_blocks)
+        (cfg.workhours_one_day * 60)
+        + lunch
+        - timeoff
+        - sum(wt.worked_time for wt in work_blocks)
     )
     if not work_blocks[-1].start:
         return
@@ -245,9 +248,15 @@ def start(start_time: datetime) -> None:
     print(f"Starting at {start_time}")
     save_timesheet(ts)
     if ts.today.lunch > 0:
-        _print_estimated_endtime_for_today(ts.today.work_blocks, ts.today.lunch)
+        _print_estimated_endtime_for_today(
+            work_blocks=ts.today.work_blocks,
+            lunch=ts.today.lunch,
+            timeoff=ts.today.time_off_minutes,
+        )
     else:
-        _print_estimated_endtime_for_today(ts.today.work_blocks)
+        _print_estimated_endtime_for_today(
+            work_blocks=ts.today.work_blocks, timeoff=ts.today.time_off_minutes
+        )
 
 
 def stop(stop_time: datetime, comment: Optional[str] = None) -> None:

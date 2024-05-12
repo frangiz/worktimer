@@ -455,16 +455,21 @@ def test_summary_month(capsys) -> None:
     assert_captured_out_starts_with(expected, captured)
 
 
-def test_timeoff_half_day() -> None:
+def test_timeoff_half_day(capsys) -> None:
     main.cfg.datafile = "2021-04-timesheet.json"
     with freeze_time("2021-04-02"):  # A Friday
         handle_command("timeoff 4")
         handle_command("start 08:00")
+        captured = capsys.readouterr()
+        write_captured_output(captured.out)
         handle_command("stop 12:02")
 
         ts = load_timesheet()
         assert ts.today.time_off_minutes == 4 * 60
         assert ts.today.flex_minutes == 2
+        assert (
+            "Estimated end time for today with 30 min lunch is 12:30:00" in captured.out
+        )
 
 
 def test_timeoff_full_day() -> None:
