@@ -6,6 +6,7 @@ from enum import Enum, auto
 from pathlib import Path
 from typing import DefaultDict, Dict, List, Optional
 
+import click
 from dotenv import dotenv_values
 from pydantic import BaseModel, Field
 from rich.console import Console
@@ -142,11 +143,11 @@ class Timesheet(BaseModel):
         return days
 
 
-class ViewSpans(Enum):
-    TODAY = auto()
-    WEEK = auto()
-    PREV_WEEK = auto()
-    MONTH = auto()
+class ViewSpans(str, Enum):
+    TODAY = "today"
+    WEEK = "week"
+    PREV_WEEK = "prev_week"
+    MONTH = "month"
 
 
 class RecalcAction(Enum):
@@ -169,21 +170,6 @@ def save_timesheet(ts: Timesheet, datafile: Optional[str] = None) -> None:
         datafile = cfg.datafile
     with open(cfg.datafile_dir.joinpath(datafile), "w+", encoding="utf-8") as f:
         f.write(ts.model_dump_json(indent=4))
-
-# todo: remove
-def get_time_and_comment(params):
-    try:
-        if params:
-            h, m = map(int, params[0].split(":"))
-            time = datetime.now().replace(hour=h, minute=m, second=0, microsecond=0)
-            comment = " ".join(params[1:]) if len(params) > 1 else None
-        else:
-            time = datetime.now().replace(second=0, microsecond=0)
-            comment = None
-        return time, comment
-    except ValueError:
-        print("Invalid time format. Expeted format is hh:mm")
-        return None, None
 
 
 def handle_command(cmd: str) -> None:
@@ -232,7 +218,8 @@ def _print_estimated_endtime_for_today(
 
 
 def parse_time(time_str: str) -> datetime:
-    return datetime.strptime(time_str, "%H:%M")
+    hour, minute = time_str.split(":")
+    return datetime.now().replace(hour=int(hour), minute=int(minute), second=0, microsecond=0)
 
 
 @app.command()
@@ -240,7 +227,7 @@ def start(start_time: Annotated[Optional[datetime], typer.Argument(
             help="Start time in format hh:mm. If not provided, current time is used.",
             formats=["%H:%M"],
             parser=parse_time)
-        ] = "") -> None:
+        ] = "00:00") -> None:
     ts = load_timesheet()
     last_wb = ts.today.last_work_block
     if last_wb.started() and not last_wb.stopped():
@@ -261,10 +248,11 @@ def start(start_time: Annotated[Optional[datetime], typer.Argument(
 
 
 @app.command()
-def stop(stop_time: Annotated[datetime, typer.Argument(
+def stop(stop_time: Annotated[Optional[datetime], typer.Argument(
             help="Stop time in format hh:mm.",
-            formats=["%H:%M"])
-        ],
+            formats=["%H:%M"],
+            parser=parse_time)
+        ] = "00:00",
          comment: Annotated[str, typer.Argument(
             help="Comment for the work block.",)
         ] = None) -> None:
@@ -315,22 +303,23 @@ def edit() -> None:
 
 
 @app.command()
-def view(viewSpan: Annotated[ViewSpans, typer.Argument(
-    case_sensitive=False,
+def view(view_span: Annotated[
+        Optional[ViewSpans], typer.Argument(
+            case_sensitive=False
 )] = ViewSpans.TODAY) -> None:
     today = datetime.now().date()
-    if viewSpan == ViewSpans.TODAY:
+    if view_span == ViewSpans.TODAY:
         start_date = end_date = date.today()
-    elif viewSpan == ViewSpans.WEEK:
+    elif view_span == ViewSpans.WEEK:
         start_date = today - timedelta(days=today.isoweekday() - 1)
         end_date = today
-    elif viewSpan == ViewSpans.PREV_WEEK:
+    elif view_span == ViewSpans.PREV_WEEK:
         start_date = today - timedelta(days=today.isoweekday() + 6)
         end_date = start_date + timedelta(days=6)
     entries = load_timesheet().get_days(start_date.isoformat(), end_date.isoformat())
 
     print_days(entries)
-    if viewSpan in [ViewSpans.WEEK, ViewSpans.PREV_WEEK]:
+    if view_span in [ViewSpans.WEEK, ViewSpans.PREV_WEEK]:
         _print_footer(entries)
 
 

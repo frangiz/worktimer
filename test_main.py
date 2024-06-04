@@ -41,23 +41,22 @@ def write_captured_output(captured_output: str) -> None:
     Path(main.cfg.datafile_dir, "captured_output.txt").write_text(captured_output)
 
 
-def assert_captured_out_starts_with(expected: List[str], captured: Any) -> None:
-    assert expected == captured.out.split("\n")[: len(expected)]
+def assert_captured_out_starts_with(expected: List[str], result: str) -> None:
+    assert expected == result.split("\n")[: len(expected)]
 
 
 @pytest.mark.parametrize("stop_time,flex", [("16:30", 0), ("16:32", 2), ("16:27", -3)])
-def test_flex(capsys, stop_time, flex) -> None:
+def test_flex(stop_time, flex) -> None:
     with freeze_time("2020-09-23"):  # A Wednesday
-        runner.invoke(main.app, ["start" "08:00"])
+        result = runner.invoke(main.app, ["start", "08:00"])
         runner.invoke(main.app, ["lunch"])
-        runner.invoke(main.app, ["stop" f"{stop_time}"])
+        runner.invoke(main.app, ["stop", f"{stop_time}"])
 
         ts = load_timesheet()
         assert ts.today.flex_minutes == flex
 
-        captured = capsys.readouterr()
         assert (
-            "Estimated end time for today with 30 min lunch is 16:30:00" in captured.out
+            "Estimated end time for today with 30 min lunch is 16:30:00" in result.stdout
         )
 
 
@@ -76,100 +75,93 @@ def test_monthly_flextime() -> None:
 
 
 # Note that no lunch was taken in this test.
-def test_multiple_start_and_end(capsys) -> None:
+def test_multiple_start_and_end() -> None:
     with freeze_time("2020-09-25"):  # A Friday
         # Working 30 min first section
-        handle_command("start 08:30")
-        captured = capsys.readouterr()
+        result = runner.invoke(main.app, ["start", "08:30"])
         assert (
-            "Estimated end time for today with 30 min lunch is 17:00:00" in captured.out
+            "Estimated end time for today with 30 min lunch is 17:00:00" in result.stdout
         )
-        handle_command("stop 09:00")
+        runner.invoke(main.app, ["stop", "09:00"])
         ts = load_timesheet()
         assert ts.today.flex_minutes == -7 * 60 - 30  # Should have -7h 30m as flex
 
         # Working 1h 30 min more
-        handle_command("start 10:30")
-        captured = capsys.readouterr()
+        result = runner.invoke(main.app, ["start", "10:30"])
         assert (
-            "Estimated end time for today with 30 min lunch is 18:30:00" in captured.out
+            "Estimated end time for today with 30 min lunch is 18:30:00" in result.stdout
         )
-        handle_command("stop 12:00")
+        runner.invoke(main.app, ["stop", "12:00"])
         ts = load_timesheet()
         assert ts.today.flex_minutes == -6 * 60  # Should have -6h as flex
 
         # Filling up to the 8 hours
-        handle_command("start 13:00")
-        captured = capsys.readouterr()
+        result = runner.invoke(main.app, ["start", "13:00"])
         assert (
-            "Estimated end time for today with 30 min lunch is 19:30:00" in captured.out
+            "Estimated end time for today with 30 min lunch is 19:30:00" in result.stdout
         )
-        handle_command("stop 19:00")
+        runner.invoke(main.app, ["stop", "19:00"])
         ts = load_timesheet()
         assert ts.today.flex_minutes == 0  # Should have 0 min as flex
 
         # Working a few more minutes
-        handle_command("start 19:30")
-        captured = capsys.readouterr()
+        result = runner.invoke(main.app, ["start", "19:30"])
         assert (
-            "Estimated end time for today with 30 min lunch is 20:00:00" in captured.out
+            "Estimated end time for today with 30 min lunch is 20:00:00" in result.stdout
         )
-        handle_command("stop 19:35")
+        runner.invoke(main.app, ["stop", "19:35"])
         ts = load_timesheet()
         assert ts.today.flex_minutes == 5  # Should have 5 min as flex
 
 
-def test_workblock_that_is_already_started_cannot_be_started_again(capsys) -> None:
-    handle_command("start 08:00")
+def test_workblock_that_is_already_started_cannot_be_started_again() -> None:
+    runner.invoke(main.app, ["start", "08:00"])
     ts = load_timesheet()
 
-    handle_command("start 08:01")
+    result = runner.invoke(main.app, ["start", "08:01"])
 
     assert ts == load_timesheet()
     assert len(ts.today.work_blocks) == 1
-    captured = capsys.readouterr()
     assert (
-        "Workblock already started, stop it before starting another one" in captured.out
+        "Workblock already started, stop it before starting another one" in result.stdout
     )
 
 
-def test_lunch_fails_if_day_is_not_started(capsys) -> None:
-    handle_command("lunch")
+def test_lunch_fails_if_day_is_not_started() -> None:
+    result = runner.invoke(main.app, ["lunch"])
     assert load_timesheet().today.lunch == 0
-    captured = capsys.readouterr()
-    assert "Could not find today in timesheet, did you start the day?" in captured.out
+    assert "Could not find today in timesheet, did you start the day?" in result.stdout
 
-    handle_command("start")
-    handle_command("lunch")
+    runner.invoke(main.app, ["start"])
+    runner.invoke(main.app, ["lunch"])
     assert load_timesheet().today.lunch == 30
 
 
 def test_running_lunch_twice_will_not_overwrite_first_lunch() -> None:
-    handle_command("start")
-    handle_command("lunch")
+    runner.invoke(main.app, ["start"])
+    runner.invoke(main.app, ["lunch"])
     assert load_timesheet().today.lunch == 30
-    handle_command("lunch 25")
+    runner.invoke(main.app, ["lunch", "25"])
     assert load_timesheet().today.lunch == 30
 
 
-def test_stop_fails_if_last_workblock_is_not_started(capsys) -> None:
-    handle_command("stop")
+def test_stop_fails_if_last_workblock_is_not_started() -> None:
+    result = runner.invoke(main.app, ["stop"])
     assert not load_timesheet().today.last_work_block.stopped()
-    captured = capsys.readouterr()
-    assert "Could not stop workblock, is your last workblock started?" in captured.out
+    assert "Could not stop workblock, is your last workblock started?" in result.stdout
 
-    handle_command("start 08:05")
-    handle_command("stop 08:10")
+    runner.invoke(main.app, ["start", "08:05"])
+    runner.invoke(main.app, ["stop", "08:10"])
     assert load_timesheet().today.last_work_block.stop == time.fromisoformat("08:10:00")
     assert load_timesheet().today.last_work_block.stopped()
 
 
 def test_running_stop_twice_will_not_overwrite_last_stop() -> None:
-    handle_command("start 08:01")
-    handle_command("stop 08:03")
+    runner.invoke(main.app, ["start", "08:01"])
+    runner.invoke(main.app, ["stop", "08:03"])
     assert load_timesheet().today.last_work_block.stop == time.fromisoformat("08:03:00")
 
-    handle_command("stop 08:05")
+    runner.invoke(main.app, ["stop", "08:05"])
     assert load_timesheet().today.last_work_block.stop == time.fromisoformat("08:03:00")
 
 
@@ -190,8 +182,8 @@ def test_total_flextime() -> None:
 def test_flextime_correct_during_weekend() -> None:
     main.cfg.datafile = "2020-09-timesheet.json"
     with freeze_time("2020-09-26"):  # A Saturday
-        handle_command("start 08:00")
-        handle_command("stop 09:02")
+        runner.invoke(main.app, ["start", "08:00"])
+        runner.invoke(main.app, ["stop", "09:02"])
 
         assert load_timesheet().today.flex_minutes == 62
         assert calc_total_flex() == 62
@@ -227,7 +219,7 @@ def test_total_flex_as_str_more_than_one_hour() -> None:
 def test_start_no_arguments() -> None:
     main.cfg.datafile = "2020-09-timesheet.json"
     with freeze_time("2020-09-26 08:03"):  # A Saturday
-        handle_command("start")
+        runner.invoke(main.app, ["start"])
 
         assert load_timesheet().today.last_work_block.start == time.fromisoformat(
             "08:03:00"
@@ -237,33 +229,31 @@ def test_start_no_arguments() -> None:
 def test_stop_no_arguments() -> None:
     main.cfg.datafile = "2020-09-timesheet.json"
     with freeze_time("2020-09-26 08:07"):  # A Saturday
-        handle_command("start 08:00")
-        handle_command("stop")
+        runner.invoke(main.app, ["start", "08:00"])
+        runner.invoke(main.app, ["stop"])
 
         assert load_timesheet().today.last_work_block.stop == time.fromisoformat(
             "08:07:00"
         )
 
 
-def test_view_today(capsys) -> None:
+def test_view_today() -> None:
     main.cfg.datafile = "2020-11-timesheet.json"
     with freeze_time("2020-11-24"):  # A Tuesday
-        handle_command("start 08:02")
-        handle_command("lunch 25")
-        handle_command("stop 14:21")
-        handle_command("start 15:01")
-        handle_command("stop 17:27")
-        capsys.readouterr()
+        runner.invoke(main.app, ["start", "08:02"])
+        runner.invoke(main.app, ["lunch", "25"])
+        runner.invoke(main.app, ["stop", "14:21"])
+        runner.invoke(main.app, ["start", "15:01"])
+        runner.invoke(main.app, ["stop", "17:27"])
 
-        handle_command("view")  # Act
-    captured = capsys.readouterr()
+        result = runner.invoke(main.app, ["view"])  # Act
 
     expected = [
         "2020-11-24 | worked time: 8h 20min | lunch: 25min | daily flex: 20min",
         "  08:02-14:21 => 6h 19min",
         "  15:01-17:27 => 2h 26min",
     ]
-    assert_captured_out_starts_with(expected, captured)
+    assert_captured_out_starts_with(expected, result.stdout)
 
 
 def test_view_today_with_workblock_not_ended(capsys) -> None:
@@ -285,10 +275,10 @@ def test_view_today_with_workblock_not_ended(capsys) -> None:
 def test_view_today_with_a_comment(capsys) -> None:
     main.cfg.datafile = "2020-11-timesheet.json"
     with freeze_time("2020-11-24"):  # A Tuesday
-        handle_command("start 08:00")
+        runner.invoke(main.app, ["start", "08:00"])
         handle_command("stop 09:00 Worked on solving the crazy hard bug.")
-        handle_command("start 10:00")
-        handle_command("stop 11:30")
+        runner.invoke(main.app, ["start", "10:00"])
+        runner.invoke(main.app, ["stop", "11:30"])
         capsys.readouterr()
 
         handle_command("view")  # Act
@@ -306,21 +296,21 @@ def test_view_today_with_a_comment(capsys) -> None:
 def test_view_week(capsys) -> None:
     main.cfg.datafile = "2020-11-timesheet.json"
     with freeze_time("2020-11-22"):  # A Sunday the week before
-        handle_command("start 08:00")
+        runner.invoke(main.app, ["start", "08:00"])
         handle_command("lunch")
-        handle_command("stop 16:30")
+        runner.invoke(main.app, ["stop", "16:30"])
     # The Monday is intentionally excluded
     with freeze_time("2020-11-24"):  # A Tuesday
-        handle_command("start 08:02")
+        runner.invoke(main.app, ["start", "08:02"])
         handle_command("lunch")
-        handle_command("stop 16:30")
+        runner.invoke(main.app, ["stop", "16:30"])
 
     with freeze_time("2020-11-25"):  # A Wednesday
-        handle_command("start 08:02")
-        handle_command("lunch 25")
-        handle_command("stop 14:21")
-        handle_command("start 15:01")
-        handle_command("stop 17:27")
+        runner.invoke(main.app, ["start", "08:02"])
+        runner.invoke(main.app, ["lunch", "25"])
+        runner.invoke(main.app, ["stop", "14:21"])
+        runner.invoke(main.app, ["start", "15:01"])
+        runner.invoke(main.app, ["stop", "17:27"])
         capsys.readouterr()
 
         handle_command("view week")  # Act
@@ -345,21 +335,21 @@ def test_view_week(capsys) -> None:
 def test_view_prev_week(capsys) -> None:
     main.cfg.datafile = "2020-11-timesheet.json"
     with freeze_time("2020-11-22"):  # A Sunday the week before
-        handle_command("start 08:00")
+        runner.invoke(main.app, ["start", "08:00"])
         handle_command("lunch")
-        handle_command("stop 16:30")
+        runner.invoke(main.app, ["stop", "16:30"])
     # The Monday is intentionally excluded
     with freeze_time("2020-11-24"):  # A Tuesday
-        handle_command("start 08:02")
+        runner.invoke(main.app, ["start", "08:02"])
         handle_command("lunch")
-        handle_command("stop 16:30")
+        runner.invoke(main.app, ["stop", "16:30"])
 
     with freeze_time("2020-11-25"):  # A Wednesday
-        handle_command("start 08:02")
-        handle_command("lunch 25")
-        handle_command("stop 14:21")
-        handle_command("start 15:01")
-        handle_command("stop 17:27")
+        runner.invoke(main.app, ["start", "08:02"])
+        runner.invoke(main.app, ["lunch", "25"])
+        runner.invoke(main.app, ["stop", "14:21"])
+        runner.invoke(main.app, ["start", "15:01"])
+        runner.invoke(main.app, ["stop", "17:27"])
     # some time passes so it is the next week
     with freeze_time("2020-11-30"):  # The Monday next week
         capsys.readouterr()
@@ -393,7 +383,7 @@ def test_view_prev_week(capsys) -> None:
 def test_view_is_case_insensitive(capsys) -> None:
     main.cfg.datafile = "2020-11-timesheet.json"
     with freeze_time("2020-11-24"):  # A Tuesday
-        handle_command("start 08:02")
+        runner.invoke(main.app, ["start", "08:02"])
         capsys.readouterr()
 
         handle_command("view ToDaY")  # Act
@@ -409,24 +399,24 @@ def test_view_is_case_insensitive(capsys) -> None:
 def test_summary_month(capsys) -> None:
     main.cfg.datafile = "2023-01-timesheet.json"
     with freeze_time("2023-01-03"):  # A Tuesday
-        handle_command("start 08:00")
+        runner.invoke(main.app, ["start", "08:00"])
         handle_command("lunch")
-        handle_command("stop 16:30")
+        runner.invoke(main.app, ["stop", "16:30"])
     # Wednesday is intentionally excluded
     with freeze_time("2023-01-05"):  # A Thursday
-        handle_command("start 08:02")
+        runner.invoke(main.app, ["start", "08:02"])
         handle_command("lunch")
-        handle_command("stop 16:30")
+        runner.invoke(main.app, ["stop", "16:30"])
     with freeze_time("2023-01-07"):  # A Saturday
         handle_command("timeoff 8")
-        handle_command("start 10:00")
-        handle_command("stop 11:30")
+        runner.invoke(main.app, ["start", "10:00"])
+        runner.invoke(main.app, ["stop", "11:30"])
     with freeze_time("2023-01-09"):  # Monday the next week
-        handle_command("start 08:02")
-        handle_command("lunch 25")
-        handle_command("stop 14:21")
-        handle_command("start 15:01")
-        handle_command("stop 17:27")
+        runner.invoke(main.app, ["start", "08:02"])
+        runner.invoke(main.app, ["lunch", "25"])
+        runner.invoke(main.app, ["stop", "14:21"])
+        runner.invoke(main.app, ["start", "15:01"])
+        runner.invoke(main.app, ["stop", "17:27"])
         capsys.readouterr()
 
         handle_command("summary")  # Act
@@ -461,8 +451,8 @@ def test_timeoff_half_day() -> None:
     main.cfg.datafile = "2021-04-timesheet.json"
     with freeze_time("2021-04-02"):  # A Friday
         handle_command("timeoff 4")
-        handle_command("start 08:00")
-        handle_command("stop 12:02")
+        runner.invoke(main.app, ["start", "08:00"])
+        runner.invoke(main.app, ["stop", "12:02"])
 
         ts = load_timesheet()
         assert ts.today.time_off_minutes == 4 * 60
@@ -482,8 +472,8 @@ def test_timeoff_full_day() -> None:
 def test_timeoff_recalcs_flex() -> None:
     main.cfg.datafile = "2021-04-timesheet.json"
     with freeze_time("2021-04-02"):  # A Friday
-        handle_command("start 08:00")
-        handle_command("stop 12:02")
+        runner.invoke(main.app, ["start", "08:00"])
+        runner.invoke(main.app, ["stop", "12:02"])
 
         ts = load_timesheet()
         assert ts.today.time_off_minutes == 0
@@ -524,20 +514,20 @@ def test_fmt_mins(mins, expected) -> None:
 
 
 def test_worked_time() -> None:
-    handle_command("start 08:00")
-    handle_command("stop 09:00")  # Worked 1 hour
+    runner.invoke(main.app, ["start", "08:00"])
+    runner.invoke(main.app, ["stop", "09:00"])  # Worked 1 hour
 
-    handle_command("start 12:00")
-    handle_command("stop 14:00")  # Worked 2 more hours
+    runner.invoke(main.app, ["start", "12:00"])
+    runner.invoke(main.app, ["stop", "14:00"])  # Worked 2 more hours
 
     ts = load_timesheet()
     assert ts.today.worked_time == 3 * 60
 
 
 def test_worked_time_with_lunch() -> None:
-    handle_command("start 08:00")
-    handle_command("stop 09:00")
-    handle_command("lunch 25")
+    runner.invoke(main.app, ["start", "08:00"])
+    runner.invoke(main.app, ["stop", "09:00"])
+    runner.invoke(main.app, ["lunch", "25"])
 
     ts = load_timesheet()
     # Worked 35 min and had 25 min lunch
@@ -546,24 +536,24 @@ def test_worked_time_with_lunch() -> None:
 
 
 def test_worked_time_with_no_block_stopped() -> None:
-    handle_command("start 08:10")
-    handle_command("lunch")
+    runner.invoke(main.app, ["start", "08:10"])
+    runner.invoke(main.app, ["lunch"])
 
     ts = load_timesheet()
     assert ts.today.worked_time == 0
 
 
 def test_worked_time_with_a_block_not_stopped() -> None:
-    handle_command("start 08:10")
-    handle_command("stop 08:30")  # Worked 2 mins
-    handle_command("start 08:50")
+    runner.invoke(main.app, ["start", "08:10"])
+    runner.invoke(main.app, ["stop", "08:30"])  # Worked 2 mins
+    runner.invoke(main.app, ["start", "08:50"])
 
     ts = load_timesheet()
     assert ts.today.worked_time == 20
 
 
 def test_comment_with_an_empty_comment() -> None:
-    handle_command("start 08:10")
+    runner.invoke(main.app, ["start", "08:10"])
     handle_command("comment ")
 
     ts = load_timesheet()
@@ -571,7 +561,7 @@ def test_comment_with_an_empty_comment() -> None:
 
 
 def test_comment_with_a_block_not_stopped() -> None:
-    handle_command("start 08:10")
+    runner.invoke(main.app, ["start", "08:10"])
     handle_command("comment some comment added to this workblock")
 
     ts = load_timesheet()
@@ -579,7 +569,7 @@ def test_comment_with_a_block_not_stopped() -> None:
 
 
 def test_comment_overwrites_previous_comment() -> None:
-    handle_command("start 08:10")
+    runner.invoke(main.app, ["start", "08:10"])
     handle_command("comment some comment added to this workblock")
     handle_command("comment new fancy comment")
 
@@ -595,8 +585,8 @@ def test_comment_with_workblock() -> None:
 
 
 def test_comment_with_no_open_workblock() -> None:
-    handle_command("start 08:10")
-    handle_command("stop 08:15")
+    runner.invoke(main.app, ["start", "08:10"])
+    runner.invoke(main.app, ["stop", "08:15"])
     handle_command("comment some comment added to this workblock")
 
     ts = load_timesheet()
