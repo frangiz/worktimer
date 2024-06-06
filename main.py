@@ -218,8 +218,10 @@ def _print_estimated_endtime_for_today(
 
 
 def parse_time(time_str: str) -> datetime:
-    hour, minute = time_str.split(":")
-    return datetime.now().replace(hour=int(hour), minute=int(minute), second=0, microsecond=0)
+    if time_str is not "":
+        hour, minute = time_str.split(":")
+        return datetime.now().replace(hour=int(hour), minute=int(minute), second=0, microsecond=0)
+    return datetime.now().replace(second=0, microsecond=0)
 
 
 @app.command()
@@ -227,7 +229,7 @@ def start(start_time: Annotated[Optional[datetime], typer.Argument(
             help="Start time in format hh:mm. If not provided, current time is used.",
             formats=["%H:%M"],
             parser=parse_time)
-        ] = "00:00") -> None:
+        ] = "") -> None:
     ts = load_timesheet()
     last_wb = ts.today.last_work_block
     if last_wb.started() and not last_wb.stopped():
@@ -252,10 +254,10 @@ def stop(stop_time: Annotated[Optional[datetime], typer.Argument(
             help="Stop time in format hh:mm.",
             formats=["%H:%M"],
             parser=parse_time)
-        ] = "00:00",
+        ] = "",
          comment: Annotated[str, typer.Argument(
             help="Comment for the work block.",)
-        ] = None) -> None:
+        ] = "") -> None:
     ts = load_timesheet()
     if not ts.today.last_work_block.started():
         print("Could not stop workblock, is your last workblock started?")
@@ -324,9 +326,7 @@ def view(view_span: Annotated[
 
 
 @app.command()
-def summary(viewSpan: Annotated[ViewSpans, typer.Argument(
-    case_sensitive=False,
-)] = ViewSpans.MONTH) -> None:
+def summary() -> None:
     ts = load_timesheet()
     days: List[Day] = []
     for n in range(date.today().day - 1, -1, -1):
@@ -391,18 +391,18 @@ def recalc(action: Annotated[ViewSpans, typer.Argument(
 
 
 @app.command()
-def set_time_off(time_off_mins: Annotated[int, typer.Argument(
-    help="Time off in minutes.",
+def timeoff(time_off_hours: Annotated[int, typer.Argument(
+    help="Time off in hours.",
 )]) -> None:
-    if time_off_mins < 0 or time_off_mins > 8 * 60:
+    if time_off_hours < 0 or time_off_hours > 8:
         raise ValueError(
             "Invalid timeoff value, must be an int between 0 and 8 inclusive."
         )
     ts = load_timesheet()
-    ts.today.time_off_minutes = time_off_mins
+    ts.today.time_off_minutes = time_off_hours * 60
     ts.today.recalc_flex()
     save_timesheet(ts)
-    print(f"Setting timeoff to {fmt_mins(time_off_mins)}")
+    print(f"Setting timeoff to {fmt_mins(time_off_hours)}")
 
 
 @app.command()
@@ -418,7 +418,7 @@ def set_target_hours(target_hours: Annotated[int, typer.Argument(
 
 
 @app.command()
-def set_comment(text: Annotated[Optional[str], typer.Argument(
+def comment(text: Annotated[Optional[str], typer.Argument(
     help="Comment for the last work block. If empty, the previous comment is removed.",
 )]) -> None:
     ts = load_timesheet()

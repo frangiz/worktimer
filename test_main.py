@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any, List
 
 import pytest  # type: ignore
-from freezegun import freeze_time  # type: ignore
+import time_machine
 from typer.testing import CliRunner  # type: ignore
 
 import main
@@ -47,7 +47,7 @@ def assert_captured_out_starts_with(expected: List[str], result: str) -> None:
 
 @pytest.mark.parametrize("stop_time,flex", [("16:30", 0), ("16:32", 2), ("16:27", -3)])
 def test_flex(stop_time, flex) -> None:
-    with freeze_time("2020-09-23"):  # A Wednesday
+    with time_machine.travel("2020-09-23"):  # A Wednesday
         result = runner.invoke(main.app, ["start", "08:00"])
         runner.invoke(main.app, ["lunch"])
         runner.invoke(main.app, ["stop", f"{stop_time}"])
@@ -76,7 +76,7 @@ def test_monthly_flextime() -> None:
 
 # Note that no lunch was taken in this test.
 def test_multiple_start_and_end() -> None:
-    with freeze_time("2020-09-25"):  # A Friday
+    with time_machine.travel("2020-09-25"):  # A Friday
         # Working 30 min first section
         result = runner.invoke(main.app, ["start", "08:30"])
         assert (
@@ -181,7 +181,7 @@ def test_total_flextime() -> None:
 
 def test_flextime_correct_during_weekend() -> None:
     main.cfg.datafile = "2020-09-timesheet.json"
-    with freeze_time("2020-09-26"):  # A Saturday
+    with time_machine.travel("2020-09-26"):  # A Saturday
         runner.invoke(main.app, ["start", "08:00"])
         runner.invoke(main.app, ["stop", "09:02"])
 
@@ -218,7 +218,7 @@ def test_total_flex_as_str_more_than_one_hour() -> None:
 
 def test_start_no_arguments() -> None:
     main.cfg.datafile = "2020-09-timesheet.json"
-    with freeze_time("2020-09-26 08:03"):  # A Saturday
+    with time_machine.travel("2020-09-26 08:03"):  # A Saturday
         runner.invoke(main.app, ["start"])
 
         assert load_timesheet().today.last_work_block.start == time.fromisoformat(
@@ -228,7 +228,7 @@ def test_start_no_arguments() -> None:
 
 def test_stop_no_arguments() -> None:
     main.cfg.datafile = "2020-09-timesheet.json"
-    with freeze_time("2020-09-26 08:07"):  # A Saturday
+    with time_machine.travel("2020-09-26 08:07"):  # A Saturday
         runner.invoke(main.app, ["start", "08:00"])
         runner.invoke(main.app, ["stop"])
 
@@ -239,7 +239,7 @@ def test_stop_no_arguments() -> None:
 
 def test_view_today() -> None:
     main.cfg.datafile = "2020-11-timesheet.json"
-    with freeze_time("2020-11-24"):  # A Tuesday
+    with time_machine.travel("2020-11-24"):  # A Tuesday
         runner.invoke(main.app, ["start", "08:02"])
         runner.invoke(main.app, ["lunch", "25"])
         runner.invoke(main.app, ["stop", "14:21"])
@@ -256,33 +256,29 @@ def test_view_today() -> None:
     assert_captured_out_starts_with(expected, result.stdout)
 
 
-def test_view_today_with_workblock_not_ended(capsys) -> None:
+def test_view_today_with_workblock_not_ended() -> None:
     main.cfg.datafile = "2020-11-timesheet.json"
-    with freeze_time("2020-11-24"):  # A Tuesday
-        handle_command("start 08:02")
-        capsys.readouterr()
+    with time_machine.travel("2020-11-24"):  # A Tuesday
+        runner.invoke(main.app, ["start", "08:02"])
 
-        handle_command("view")  # Act
-    captured = capsys.readouterr()
+        result = runner.invoke(main.app, ["view"])  # Act
 
     expected = [
         "2020-11-24 | worked time: 0h 0min | lunch: 0min | daily flex: 0min",
         "  08:02-",
     ]
-    assert_captured_out_starts_with(expected, captured)
+    assert_captured_out_starts_with(expected, result.stdout)
 
 
-def test_view_today_with_a_comment(capsys) -> None:
+def test_view_today_with_a_comment() -> None:
     main.cfg.datafile = "2020-11-timesheet.json"
-    with freeze_time("2020-11-24"):  # A Tuesday
+    with time_machine.travel("2020-11-24"):  # A Tuesday
         runner.invoke(main.app, ["start", "08:00"])
-        handle_command("stop 09:00 Worked on solving the crazy hard bug.")
+        runner.invoke(main.app, ["stop", "09:00", "Worked on solving the crazy hard bug."])
         runner.invoke(main.app, ["start", "10:00"])
         runner.invoke(main.app, ["stop", "11:30"])
-        capsys.readouterr()
 
-        handle_command("view")  # Act
-    captured = capsys.readouterr()
+        result = runner.invoke(main.app, ["view"])  # Act
 
     expected = [
         "2020-11-24 | worked time: 2h 30min | lunch: 0min | daily flex: -5h 30min",
@@ -290,32 +286,30 @@ def test_view_today_with_a_comment(capsys) -> None:
         "    Worked on solving the crazy hard bug.",
         "  10:00-11:30 => 1h 30min",
     ]
-    assert_captured_out_starts_with(expected, captured)
+    assert_captured_out_starts_with(expected, result.stdout)
 
 
-def test_view_week(capsys) -> None:
+def test_view_week() -> None:
     main.cfg.datafile = "2020-11-timesheet.json"
-    with freeze_time("2020-11-22"):  # A Sunday the week before
+    with time_machine.travel("2020-11-22"):  # A Sunday the week before
         runner.invoke(main.app, ["start", "08:00"])
-        handle_command("lunch")
+        runner.invoke(main.app, ["lunch"])
         runner.invoke(main.app, ["stop", "16:30"])
     # The Monday is intentionally excluded
-    with freeze_time("2020-11-24"):  # A Tuesday
+    with time_machine.travel("2020-11-24"):  # A Tuesday
         runner.invoke(main.app, ["start", "08:02"])
-        handle_command("lunch")
+        runner.invoke(main.app, ["lunch"])
         runner.invoke(main.app, ["stop", "16:30"])
 
-    with freeze_time("2020-11-25"):  # A Wednesday
+    with time_machine.travel("2020-11-25"):  # A Wednesday
         runner.invoke(main.app, ["start", "08:02"])
         runner.invoke(main.app, ["lunch", "25"])
         runner.invoke(main.app, ["stop", "14:21"])
         runner.invoke(main.app, ["start", "15:01"])
         runner.invoke(main.app, ["stop", "17:27"])
-        capsys.readouterr()
 
-        handle_command("view week")  # Act
-    captured = capsys.readouterr()
-    write_captured_output(captured.out)
+        result = runner.invoke(main.app, ["view", "week"])  # Act
+    write_captured_output(result.stdout)
 
     expected = [
         "2020-11-23 | worked time: 0h 0min | lunch: 0min | daily flex: 0min",
@@ -329,33 +323,31 @@ def test_view_week(capsys) -> None:
         "---",
         "Weekly flex: 18min",
     ]
-    assert_captured_out_starts_with(expected, captured)
+    assert_captured_out_starts_with(expected, result.stdout)
 
 
-def test_view_prev_week(capsys) -> None:
+def test_view_prev_week() -> None:
     main.cfg.datafile = "2020-11-timesheet.json"
-    with freeze_time("2020-11-22"):  # A Sunday the week before
+    with time_machine.travel("2020-11-22"):  # A Sunday the week before
         runner.invoke(main.app, ["start", "08:00"])
-        handle_command("lunch")
+        runner.invoke(main.app, ["lunch"])
         runner.invoke(main.app, ["stop", "16:30"])
     # The Monday is intentionally excluded
-    with freeze_time("2020-11-24"):  # A Tuesday
+    with time_machine.travel("2020-11-24"):  # A Tuesday
         runner.invoke(main.app, ["start", "08:02"])
-        handle_command("lunch")
+        runner.invoke(main.app, ["lunch"])
         runner.invoke(main.app, ["stop", "16:30"])
 
-    with freeze_time("2020-11-25"):  # A Wednesday
+    with time_machine.travel("2020-11-25"):  # A Wednesday
         runner.invoke(main.app, ["start", "08:02"])
         runner.invoke(main.app, ["lunch", "25"])
         runner.invoke(main.app, ["stop", "14:21"])
         runner.invoke(main.app, ["start", "15:01"])
         runner.invoke(main.app, ["stop", "17:27"])
     # some time passes so it is the next week
-    with freeze_time("2020-11-30"):  # The Monday next week
-        capsys.readouterr()
-        handle_command("view prev_week")  # Act
-    captured = capsys.readouterr()
-    write_captured_output(captured.out)
+    with time_machine.travel("2020-11-30"):  # The Monday next week
+        result = runner.invoke(main.app, ["view", "prev_week"])  # Act
+    write_captured_output(result.stdout)
 
     expected = [
         "2020-11-23 | worked time: 0h 0min | lunch: 0min | daily flex: 0min",
@@ -377,51 +369,47 @@ def test_view_prev_week(capsys) -> None:
         "---",
         "Weekly flex: 18min",
     ]
-    assert_captured_out_starts_with(expected, captured)
+    assert_captured_out_starts_with(expected, result.stdout)
 
 
-def test_view_is_case_insensitive(capsys) -> None:
+def test_view_is_case_insensitive() -> None:
     main.cfg.datafile = "2020-11-timesheet.json"
-    with freeze_time("2020-11-24"):  # A Tuesday
+    with time_machine.travel("2020-11-24"):  # A Tuesday
         runner.invoke(main.app, ["start", "08:02"])
-        capsys.readouterr()
 
-        handle_command("view ToDaY")  # Act
-    captured = capsys.readouterr()
+        result = runner.invoke(main.app, ["view", "ToDaY"])  # Act
 
     expected = [
         "2020-11-24 | worked time: 0h 0min | lunch: 0min | daily flex: 0min",
         "  08:02-",
     ]
-    assert_captured_out_starts_with(expected, captured)
+    assert_captured_out_starts_with(expected, result.stdout)
 
 
-def test_summary_month(capsys) -> None:
+def test_summary_month() -> None:
     main.cfg.datafile = "2023-01-timesheet.json"
-    with freeze_time("2023-01-03"):  # A Tuesday
+    with time_machine.travel("2023-01-03"):  # A Tuesday
         runner.invoke(main.app, ["start", "08:00"])
-        handle_command("lunch")
+        runner.invoke(main.app, ["lunch"])
         runner.invoke(main.app, ["stop", "16:30"])
     # Wednesday is intentionally excluded
-    with freeze_time("2023-01-05"):  # A Thursday
+    with time_machine.travel("2023-01-05"):  # A Thursday
         runner.invoke(main.app, ["start", "08:02"])
-        handle_command("lunch")
+        runner.invoke(main.app, ["lunch"])
         runner.invoke(main.app, ["stop", "16:30"])
-    with freeze_time("2023-01-07"):  # A Saturday
-        handle_command("timeoff 8")
+    with time_machine.travel("2023-01-07"):  # A Saturday
+        runner.invoke(main.app, ["timeoff", "8"])
         runner.invoke(main.app, ["start", "10:00"])
         runner.invoke(main.app, ["stop", "11:30"])
-    with freeze_time("2023-01-09"):  # Monday the next week
+    with time_machine.travel("2023-01-09"):  # Monday the next week
         runner.invoke(main.app, ["start", "08:02"])
         runner.invoke(main.app, ["lunch", "25"])
         runner.invoke(main.app, ["stop", "14:21"])
         runner.invoke(main.app, ["start", "15:01"])
         runner.invoke(main.app, ["stop", "17:27"])
-        capsys.readouterr()
 
-        handle_command("summary")  # Act
-    captured = capsys.readouterr()
-    write_captured_output(captured.out)
+        result = runner.invoke(main.app, ["summary"])  # Act
+    write_captured_output(result.stdout)
 
     expected = [
         "┏━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━┓",
@@ -444,13 +432,13 @@ def test_summary_month(capsys) -> None:
         "week 2: 8h 20min",
         "Worked 25h 48min of 24 hour(s) => monthly flex: 1h 48min",
     ]
-    assert_captured_out_starts_with(expected, captured)
+    assert_captured_out_starts_with(expected, result.stdout)
 
 
 def test_timeoff_half_day() -> None:
     main.cfg.datafile = "2021-04-timesheet.json"
-    with freeze_time("2021-04-02"):  # A Friday
-        handle_command("timeoff 4")
+    with time_machine.travel("2021-04-02"):  # A Friday
+        runner.invoke(main.app, ["timeoff", "4"])
         runner.invoke(main.app, ["start", "08:00"])
         runner.invoke(main.app, ["stop", "12:02"])
 
@@ -461,8 +449,8 @@ def test_timeoff_half_day() -> None:
 
 def test_timeoff_full_day() -> None:
     main.cfg.datafile = "2021-04-timesheet.json"
-    with freeze_time("2021-04-02"):  # A Friday
-        handle_command("timeoff 8")
+    with time_machine.travel("2021-04-02"):  # A Friday
+        runner.invoke(main.app, ["timeoff", "8"])
 
         ts = load_timesheet()
         assert ts.today.time_off_minutes == 8 * 60
@@ -471,7 +459,7 @@ def test_timeoff_full_day() -> None:
 
 def test_timeoff_recalcs_flex() -> None:
     main.cfg.datafile = "2021-04-timesheet.json"
-    with freeze_time("2021-04-02"):  # A Friday
+    with time_machine.travel("2021-04-02"):  # A Friday
         runner.invoke(main.app, ["start", "08:00"])
         runner.invoke(main.app, ["stop", "12:02"])
 
@@ -479,7 +467,7 @@ def test_timeoff_recalcs_flex() -> None:
         assert ts.today.time_off_minutes == 0
         assert ts.today.flex_minutes == -4 * 60 + 2
 
-        handle_command("timeoff 4")
+        runner.invoke(main.app, ["timeoff", "4"])
         ts = load_timesheet()
         assert ts.today.time_off_minutes == 4 * 60
         assert ts.today.flex_minutes == 2
@@ -487,22 +475,16 @@ def test_timeoff_recalcs_flex() -> None:
 
 def test_timeoff_negative_input() -> None:
     main.cfg.datafile = "2021-04-timesheet.json"
-    with freeze_time("2021-04-02"):  # A Friday
-        with pytest.raises(
-            ValueError,
-            match="Invalid timeoff value, must be an int between 0 and 8 inclusive.",
-        ):
-            handle_command("timeoff -1")
+    with time_machine.travel("2021-04-02"):  # A Friday
+        result = runner.invoke(main.app, ["timeoff", "-1"], catch_exceptions=False)
+        result.exception = ValueError("Invalid timeoff value, must be an int between 0 and 8 inclusive.")
 
 
 def test_timeoff_more_than_a_workday() -> None:
     main.cfg.datafile = "2021-04-timesheet.json"
-    with freeze_time("2021-04-02"):  # A Friday
-        with pytest.raises(
-            ValueError,
-            match="Invalid timeoff value, must be an int between 0 and 8 inclusive.",
-        ):
-            handle_command("timeoff 9")
+    with time_machine.travel("2021-04-02"):  # A Friday
+        result = runner.invoke(main.app, ["timeoff", "9"], catch_exceptions=False)
+        result.exception = ValueError("Invalid timeoff value, must be an int between 0 and 8 inclusive.")
 
 
 @pytest.mark.parametrize(
@@ -554,7 +536,7 @@ def test_worked_time_with_a_block_not_stopped() -> None:
 
 def test_comment_with_an_empty_comment() -> None:
     runner.invoke(main.app, ["start", "08:10"])
-    handle_command("comment ")
+    handle_command("comment")
 
     ts = load_timesheet()
     assert ts.today.last_work_block.comment is None
@@ -562,7 +544,7 @@ def test_comment_with_an_empty_comment() -> None:
 
 def test_comment_with_a_block_not_stopped() -> None:
     runner.invoke(main.app, ["start", "08:10"])
-    handle_command("comment some comment added to this workblock")
+    handle_command("comment", "some comment added to this workblock")
 
     ts = load_timesheet()
     assert ts.today.last_work_block.comment == "some comment added to this workblock"
@@ -570,15 +552,15 @@ def test_comment_with_a_block_not_stopped() -> None:
 
 def test_comment_overwrites_previous_comment() -> None:
     runner.invoke(main.app, ["start", "08:10"])
-    handle_command("comment some comment added to this workblock")
-    handle_command("comment new fancy comment")
+    handle_command("comment", "some comment added to this workblock")
+    handle_command("comment", "new fancy comment")
 
     ts = load_timesheet()
     assert ts.today.last_work_block.comment == "new fancy comment"
 
 
 def test_comment_with_workblock() -> None:
-    handle_command("comment some comment added to this workblock")
+    handle_command("comment", "some comment added to this workblock")
 
     ts = load_timesheet()
     assert ts.today.last_work_block.comment is None
@@ -587,7 +569,7 @@ def test_comment_with_workblock() -> None:
 def test_comment_with_no_open_workblock() -> None:
     runner.invoke(main.app, ["start", "08:10"])
     runner.invoke(main.app, ["stop", "08:15"])
-    handle_command("comment some comment added to this workblock")
+    handle_command("comment", "some comment added to this workblock")
 
     ts = load_timesheet()
     assert ts.today.last_work_block.comment is None
