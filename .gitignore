@@ -11,3 +11,4 @@ config.env
 coverage.xml
 htmlcov/
 test_files/
+.idea/

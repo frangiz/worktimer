@@ -604,3 +604,8 @@ def test_comment_with_no_open_workblock() -> None:
 
     ts = load_timesheet()
     assert ts.today.last_work_block.comment is None
+
+
+def test_handle_empty_command(capsys) -> None:
+    handle_command("")
+    assert "No command given" in capsys.readouterr().out

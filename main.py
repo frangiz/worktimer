@@ -184,6 +184,9 @@ def get_time_and_comment(params):
 
 
 def handle_command(cmd: str) -> None:
+    if cmd == "":
+        print("No command given")
+        return
     command_map = {
         "start": lambda params: start(get_time_and_comment(params)[0]),
         "stop": lambda params: stop(*get_time_and_comment(params)),
@@ -319,7 +322,7 @@ def view(viewSpan: ViewSpans = ViewSpans.TODAY) -> None:
         _print_footer(entries)
 
 
-def summary(viewSpan: ViewSpans = ViewSpans.MONTH) -> None:
+def summary() -> None:
     ts = load_timesheet()
     days: List[Day] = []
     for n in range(date.today().day - 1, -1, -1):
