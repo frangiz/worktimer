@@ -74,6 +74,9 @@ class WorkBlock(BaseModel):
     def stopped(self) -> bool:
         return self.stop is not None
 
+    def is_ongoing(self) -> bool:
+        return self.started() and not self.stopped()
+
 
 class Day(BaseModel):
     this_date: date
@@ -497,7 +500,7 @@ def run():
         f" of your {ts.target_hours} target hours for this month"
     )
     print(f"Monthly flex: {fmt_mins(sum(d.flex_minutes for d in ts.days.values()))} \n")
-    if len(ts.today.work_blocks) > 0:
+    if len(ts.today.work_blocks) > 0 and ts.today.last_work_block.is_ongoing():
         print(f"You started last work block @ {ts.today.last_work_block.start}")
 
     print_menu()
