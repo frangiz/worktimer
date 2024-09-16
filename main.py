@@ -193,15 +193,15 @@ def handle_command(cmd: str) -> None:
     command_map = {
         "start": lambda params: start(get_time_and_comment(params)[0]),
         "stop": lambda params: stop(*get_time_and_comment(params)),
-        "lunch": lambda params: lunch(int(params[0]))
-        if params
-        else lunch(DEFAULT_LUNCH_DURATION),
+        "lunch": lambda params: (
+            lunch(int(params[0])) if params else lunch(DEFAULT_LUNCH_DURATION)
+        ),
         "edit": lambda _: edit(),
         "view": lambda params: view(ViewSpans[params[0].upper()]) if params else view(),
         "summary": lambda _: summary(),
-        "recalc": lambda params: recalc(RecalcAction[params[0].upper()])
-        if params
-        else recalc(),
+        "recalc": lambda params: (
+            recalc(RecalcAction[params[0].upper()]) if params else recalc()
+        ),
         "timeoff": lambda params: set_time_off(int(params[0]) * 60),
         "target_hours": lambda params: set_target_hours(int(params[0])),
         "comment": lambda params: set_comment(" ".join(params) if params else None),
