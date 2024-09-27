@@ -438,6 +438,7 @@ def print_menu():
     print("recalc [FLEX]")
     print("timeoff [hours]")
     print("target_hours [hours]")
+    print("comment [the comment]")
 
 
 def print_days(days: List[Day]) -> None:
