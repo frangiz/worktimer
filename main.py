@@ -476,6 +476,8 @@ def _print_work_blocks(blocks: List[WorkBlock]) -> None:
         block_stop = block.stop.isoformat()[:5] if block.stop is not None else ""
         if not block.stopped():
             print(f"  {block_start}-")
+            if block.comment:
+                print(f"    {block.comment}")
         else:
             print(f"  {block_start}-{block_stop} => {fmt_mins(block.worked_time)}")
             if block.comment:

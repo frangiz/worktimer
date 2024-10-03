@@ -286,17 +286,18 @@ def test_view_today_with_a_comment(capsys) -> None:
         handle_command("start 08:00")
         handle_command("stop 09:00 Worked on solving the crazy hard bug.")
         handle_command("start 10:00")
-        handle_command("stop 11:30")
+        handle_command("comment working some more on the bug")
         capsys.readouterr()
 
         handle_command("view")  # Act
     captured = capsys.readouterr()
 
     expected = [
-        "2020-11-24 | worked time: 2h 30min | lunch: 0min | daily flex: -5h 30min",
+        "2020-11-24 | worked time: 1h 0min | lunch: 0min | daily flex: -7h 0min",
         "  08:00-09:00 => 1h 0min",
         "    Worked on solving the crazy hard bug.",
-        "  10:00-11:30 => 1h 30min",
+        "  10:00-",
+        "    working some more on the bug",
     ]
     assert_captured_out_starts_with(expected, captured)
 
