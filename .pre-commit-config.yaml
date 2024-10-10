@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v5.0.0
     hooks:
     - id: check-executables-have-shebangs
     - id: check-yaml
@@ -8,7 +8,7 @@ repos:
       types: [python]
     - id: trailing-whitespace
   - repo: https://github.com/psf/black
-    rev: 24.8.0
+    rev: 24.10.0
     hooks:
       - id: black
   - repo: https://github.com/pycqa/isort
