@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import DefaultDict, Dict, List, Optional
 
 from dotenv import dotenv_values
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, RootModel
 from rich.console import Console
 from rich.table import Table
 
@@ -142,6 +142,37 @@ class Timesheet(BaseModel):
         return days
 
 
+class Project(BaseModel):
+    id: int
+    name: str
+    deleted: bool = False
+
+    def delete(self) -> None:
+        self.deleted = True
+
+
+class Projects(RootModel):
+    root: List[Project]
+
+    def __iter__(self):
+        return iter(self.root)
+
+    def __len__(self) -> int:
+        return len(self.root)
+
+    def __getitem__(self, index: int) -> Project:
+        return self.root[index]
+
+    def add_project(self, project: Project) -> None:
+        self.root.append(project)
+
+    def get_project_by_id(self, project_id: int) -> Project:
+        for p in self.root:
+            if p.id == project_id:
+                return p
+        raise ValueError(f"No project with id {project_id}")
+
+
 class ViewSpans(Enum):
     TODAY = auto()
     WEEK = auto()
@@ -169,6 +200,22 @@ def save_timesheet(ts: Timesheet, datafile: Optional[str] = None) -> None:
         datafile = cfg.datafile
     with open(cfg.datafile_dir.joinpath(datafile), "w+", encoding="utf-8") as f:
         f.write(ts.model_dump_json(indent=4))
+
+
+def load_projects() -> Projects:
+    projects_file = cfg.datafile_dir.joinpath("projects.json")
+    if not projects_file.is_file():
+        projects = Projects([])
+        projects.add_project(Project(id=1, name="default", deleted=False))
+        save_projects(projects)
+    with open(projects_file, "r") as f:
+        json_content = f.read()
+    return Projects.model_validate_json(json_content)
+
+
+def save_projects(projects: Projects) -> None:
+    with open(cfg.datafile_dir.joinpath("projects.json"), "w+", encoding="utf-8") as f:
+        f.write(projects.model_dump_json(indent=4))
 
 
 def get_time_and_comment(params):
@@ -205,6 +252,9 @@ def handle_command(cmd: str) -> None:
         "timeoff": lambda params: set_time_off(int(params[0]) * 60),
         "target_hours": lambda params: set_target_hours(int(params[0])),
         "comment": lambda params: set_comment(" ".join(params) if params else None),
+        "create_project": lambda params: create_project(" ".join(params)),
+        "list_projects": lambda _: list_projects(),
+        "delete_project": lambda params: delete_project(int(params[0])),
     }
 
     cmd, *params = cmd.split()
@@ -414,6 +464,35 @@ def set_comment(text: Optional[str]) -> None:
     else:
         print("Cannot set comment for workblock not started")
     save_timesheet(ts)
+
+
+def create_project(name: str) -> None:
+    if not name:
+        raise ValueError("Project name cannot be empty")
+    if len(name) > 50:
+        raise ValueError("Project name cannot be longer than 50 characters")
+    projects = load_projects()
+    if any(p.name == name for p in projects):
+        raise ValueError(f"Project with name '{name}' already exists")
+    new_id = max(p.id for p in projects) + 1
+    projects.add_project(Project(id=new_id, name=name, deleted=False))
+    save_projects(projects)
+
+
+def list_projects() -> None:
+    projects = load_projects()
+    for p in projects:
+        if p.deleted:
+            continue
+        print(f"{p.id}: {p.name}")
+
+
+def delete_project(project_id: int) -> None:
+    if project_id == 1:
+        raise ValueError("Cannot delete the default project")
+    projects = load_projects()
+    projects.get_project_by_id(project_id).delete()
+    save_projects(projects)
 
 
 def calc_total_flex() -> int:
