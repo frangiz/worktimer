@@ -7,6 +7,7 @@ from freezegun import freeze_time  # type: ignore
 
 import main
 from main import (
+    Project,
     Timesheet,
     calc_total_flex,
     fmt_mins,
@@ -25,6 +26,9 @@ def setup_module(module: Any) -> None:
 def setup_function(func: Any) -> None:
     files = main.cfg.datafile_dir.glob("*-timesheet.json")
     for f in files:
+        f.unlink()
+    project_files = main.cfg.datafile_dir.glob("projects.json")
+    for f in project_files:
         f.unlink()
     captured_output = Path(main.cfg.datafile_dir, "captured_output.txt")
     if captured_output.exists():
@@ -610,3 +614,64 @@ def test_comment_with_no_open_workblock() -> None:
 def test_handle_empty_command(capsys) -> None:
     handle_command("")
     assert "No command given" in capsys.readouterr().out
+
+
+def test_load_empty_projects_has_default_project() -> None:
+    projects = main.load_projects()
+    assert len(projects) == 1
+    assert projects[0] == Project(id=1, name="default", deleted=False)
+
+
+def test_create_project() -> None:
+    handle_command("create_project test_project")
+    projects = main.load_projects()
+    assert len(projects) == 2
+    expected = Project(id=2, name="test_project", deleted=False)
+    assert projects[1] == expected
+    assert projects.get_project_by_id(2) == expected
+
+
+def test_create_project_with_empty_name() -> None:
+    with pytest.raises(ValueError, match="Project name cannot be empty"):
+        handle_command("create_project")
+
+
+def test_create_project_with_long_name() -> None:
+    with pytest.raises(
+        ValueError, match="Project name cannot be longer than 50 characters"
+    ):
+        handle_command("create_project a" * 51)
+
+
+def test_create_project_with_existing_name() -> None:
+    handle_command("create_project test_project")
+    with pytest.raises(
+        ValueError, match="Project with name 'test_project' already exists"
+    ):
+        handle_command("create_project test_project")
+
+
+def test_list_projects(capsys) -> None:
+    handle_command("create_project test_project")
+    handle_command("list_projects")
+    captured = capsys.readouterr()
+    assert "1: default" in captured.out
+    assert "2: test_project" in captured.out
+
+
+def test_delete_project() -> None:
+    handle_command("create_project test_project")
+    handle_command("delete_project 2")
+    projects = main.load_projects()
+    assert len(projects) == 2
+    assert projects.get_project_by_id(2).deleted
+
+
+def test_delete_project_with_non_existing_id() -> None:
+    with pytest.raises(ValueError, match="No project with id 2"):
+        handle_command("delete_project 2")
+
+
+def test_delete_project_with_default_project() -> None:
+    with pytest.raises(ValueError, match="Cannot delete the default project"):
+        handle_command("delete_project 1")
