@@ -61,6 +61,7 @@ class WorkBlock(BaseModel):
     start: Optional[time] = None
     stop: Optional[time] = None
     comment: Optional[str] = None
+    project_id: Optional[int] = None
 
     @property
     def worked_time(self) -> int:
@@ -296,10 +297,18 @@ def start(start_time: datetime) -> None:
         print("Workblock already started, stop it before starting another one")
         return
 
+    projects = load_projects()
+    if len(projects) > 1:
+        project_id = prompt_for_project()
+    else:
+        project_id = 1
     if last_wb.stopped():
-        ts.today.work_blocks.append(WorkBlock(start=start_time.time()))
+        ts.today.work_blocks.append(
+            WorkBlock(start=start_time.time(), project_id=project_id)
+        )
     else:
         last_wb.start = start_time.time()
+        last_wb.project_id = project_id
 
     print(f"Starting at {start_time}")
     save_timesheet(ts)
@@ -493,6 +502,26 @@ def delete_project(project_id: int) -> None:
     projects = load_projects()
     projects.get_project_by_id(project_id).delete()
     save_projects(projects)
+
+
+def prompt_for_project() -> int:
+    projects = load_projects()
+    print("Select project:")
+    for p in projects:
+        if p.deleted:
+            continue
+        print(f"{p.id}: {p.name}")
+
+    project_id = None
+    while project_id is None:
+        try:
+            project_id = int(input("> "))
+            if project_id in (p.id for p in projects):
+                project_id = int(project_id)
+        except ValueError:
+            print("Invalid project id")
+            project_id = None
+    return project_id
 
 
 def calc_total_flex() -> int:

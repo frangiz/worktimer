@@ -1,6 +1,7 @@
 from datetime import time
 from pathlib import Path
 from typing import Any, List
+from unittest.mock import patch
 
 import pytest  # type: ignore
 from freezegun import freeze_time  # type: ignore
@@ -675,3 +676,44 @@ def test_delete_project_with_non_existing_id() -> None:
 def test_delete_project_with_default_project() -> None:
     with pytest.raises(ValueError, match="Cannot delete the default project"):
         handle_command("delete_project 1")
+
+
+def test_start_workblock_gets_default_project_when_no_projects_is_added() -> None:
+    main.cfg.datafile = "2020-09-timesheet.json"
+    with freeze_time("2020-09-23"):  # A Wednesday
+        handle_command("start 08:00")
+        ts = load_timesheet()
+        assert ts.today.last_work_block.project_id == 1
+
+
+def test_start_workblock_with_selecting_project() -> None:
+    main.cfg.datafile = "2020-09-timesheet.json"
+    handle_command("create_project project2")
+    with freeze_time("2020-09-23"):  # A Wednesday
+        with patch("builtins.input", side_effect=["2"]):
+            handle_command("start 08:00")
+        ts = load_timesheet()
+        assert ts.today.last_work_block.project_id == 2
+
+
+def test_prompt_for_project_handles_invalid_input() -> None:
+    main.cfg.datafile = "2020-09-timesheet.json"
+    handle_command("create_project project2")
+    with freeze_time("2020-09-23"):  # A Wednesday
+        with patch("builtins.input", side_effect=["abc", "2"]):
+            handle_command("start 08:00")
+        ts = load_timesheet()
+        assert ts.today.last_work_block.project_id == 2
+
+
+def test_start_second_workblock_with_selecting_project() -> None:
+    main.cfg.datafile = "2020-09-timesheet.json"
+    with freeze_time("2020-09-23"):  # A Wednesday
+        handle_command("start 08:00")
+        handle_command("stop 08:01")
+        handle_command("create_project second project")
+        with patch("builtins.input", side_effect=["2"]):
+            handle_command("start 08:02")
+        ts = load_timesheet()
+        assert ts.today.work_blocks[0].project_id == 1
+        assert ts.today.last_work_block.project_id == 2
