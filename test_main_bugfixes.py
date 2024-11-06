@@ -16,6 +16,9 @@ def setup_function(func: Any) -> None:
     files = main.cfg.datafile_dir.glob("*-timesheet.json")
     for f in files:
         f.unlink()
+    project_files = main.cfg.datafile_dir.glob("projects.json")
+    for f in project_files:
+        f.unlink()
 
 
 def teardown_function(func: Any) -> None:
