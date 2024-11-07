@@ -547,6 +547,9 @@ def print_menu():
     print("timeoff [hours]")
     print("target_hours [hours]")
     print("comment [the comment]")
+    print("create_project [name]")
+    print("list_projects")
+    print("delete_project [id]")
 
 
 def print_days(days: List[Day]) -> None:
