@@ -207,7 +207,6 @@ def load_projects() -> Projects:
     projects_file = cfg.datafile_dir.joinpath("projects.json")
     if not projects_file.is_file():
         projects = Projects([])
-        projects.add_project(Project(id=1, name="default", deleted=False))
         save_projects(projects)
     with open(projects_file, "r") as f:
         json_content = f.read()
@@ -298,10 +297,7 @@ def start(start_time: datetime) -> None:
         return
 
     projects = load_projects()
-    if len(projects) > 1:
-        project_id = prompt_for_project()
-    else:
-        project_id = 1
+    project_id = prompt_for_project() if len(projects) else None
     if last_wb.stopped():
         ts.today.work_blocks.append(
             WorkBlock(start=start_time.time(), project_id=project_id)
@@ -483,7 +479,7 @@ def create_project(name: str) -> None:
     projects = load_projects()
     if any(p.name == name for p in projects):
         raise ValueError(f"Project with name '{name}' already exists")
-    new_id = max(p.id for p in projects) + 1
+    new_id = max((p.id for p in projects), default=0) + 1
     projects.add_project(Project(id=new_id, name=name, deleted=False))
     save_projects(projects)
 
@@ -497,8 +493,6 @@ def list_projects() -> None:
 
 
 def delete_project(project_id: int) -> None:
-    if project_id == 1:
-        raise ValueError("Cannot delete the default project")
     projects = load_projects()
     projects.get_project_by_id(project_id).delete()
     save_projects(projects)
@@ -507,6 +501,7 @@ def delete_project(project_id: int) -> None:
 def prompt_for_project() -> int:
     projects = load_projects()
     print("Select project:")
+    print("0: No project")
     for p in projects:
         if p.deleted:
             continue
@@ -516,12 +511,12 @@ def prompt_for_project() -> int:
     while project_id is None:
         try:
             project_id = int(input("> "))
-            if project_id in (p.id for p in projects):
+            if project_id == 0 or project_id in (p.id for p in projects):
                 project_id = int(project_id)
         except ValueError:
             print("Invalid project id")
             project_id = None
-    return project_id
+    return project_id if project_id else None
 
 
 def calc_total_flex() -> int:

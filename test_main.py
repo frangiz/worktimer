@@ -617,19 +617,13 @@ def test_handle_empty_command(capsys) -> None:
     assert "No command given" in capsys.readouterr().out
 
 
-def test_load_empty_projects_has_default_project() -> None:
-    projects = main.load_projects()
-    assert len(projects) == 1
-    assert projects[0] == Project(id=1, name="default", deleted=False)
-
-
 def test_create_project() -> None:
     handle_command("create_project test_project")
     projects = main.load_projects()
-    assert len(projects) == 2
-    expected = Project(id=2, name="test_project", deleted=False)
-    assert projects[1] == expected
-    assert projects.get_project_by_id(2) == expected
+    assert len(projects) == 1
+    expected = Project(id=1, name="test_project", deleted=False)
+    assert projects[0] == expected
+    assert projects.get_project_by_id(1) == expected
 
 
 def test_create_project_with_empty_name() -> None:
@@ -656,16 +650,15 @@ def test_list_projects(capsys) -> None:
     handle_command("create_project test_project")
     handle_command("list_projects")
     captured = capsys.readouterr()
-    assert "1: default" in captured.out
-    assert "2: test_project" in captured.out
+    assert "1: test_project" in captured.out
 
 
 def test_delete_project() -> None:
     handle_command("create_project test_project")
-    handle_command("delete_project 2")
+    handle_command("delete_project 1")
     projects = main.load_projects()
-    assert len(projects) == 2
-    assert projects.get_project_by_id(2).deleted
+    assert len(projects) == 1
+    assert projects.get_project_by_id(1).deleted
 
 
 def test_delete_project_with_non_existing_id() -> None:
@@ -673,37 +666,32 @@ def test_delete_project_with_non_existing_id() -> None:
         handle_command("delete_project 2")
 
 
-def test_delete_project_with_default_project() -> None:
-    with pytest.raises(ValueError, match="Cannot delete the default project"):
-        handle_command("delete_project 1")
-
-
-def test_start_workblock_gets_default_project_when_no_projects_is_added() -> None:
+def test_start_workblock_gets_no_project_when_no_projects_is_added() -> None:
     main.cfg.datafile = "2020-09-timesheet.json"
     with freeze_time("2020-09-23"):  # A Wednesday
         handle_command("start 08:00")
         ts = load_timesheet()
-        assert ts.today.last_work_block.project_id == 1
+        assert ts.today.last_work_block.project_id is None
 
 
 def test_start_workblock_with_selecting_project() -> None:
     main.cfg.datafile = "2020-09-timesheet.json"
     handle_command("create_project project2")
     with freeze_time("2020-09-23"):  # A Wednesday
-        with patch("builtins.input", side_effect=["2"]):
+        with patch("builtins.input", side_effect=["1"]):
             handle_command("start 08:00")
         ts = load_timesheet()
-        assert ts.today.last_work_block.project_id == 2
+        assert ts.today.last_work_block.project_id == 1
 
 
 def test_prompt_for_project_handles_invalid_input() -> None:
     main.cfg.datafile = "2020-09-timesheet.json"
     handle_command("create_project project2")
     with freeze_time("2020-09-23"):  # A Wednesday
-        with patch("builtins.input", side_effect=["abc", "2"]):
+        with patch("builtins.input", side_effect=["abc", "1"]):
             handle_command("start 08:00")
         ts = load_timesheet()
-        assert ts.today.last_work_block.project_id == 2
+        assert ts.today.last_work_block.project_id == 1
 
 
 def test_start_second_workblock_with_selecting_project() -> None:
@@ -712,8 +700,18 @@ def test_start_second_workblock_with_selecting_project() -> None:
         handle_command("start 08:00")
         handle_command("stop 08:01")
         handle_command("create_project second project")
-        with patch("builtins.input", side_effect=["2"]):
+        with patch("builtins.input", side_effect=["1"]):
             handle_command("start 08:02")
         ts = load_timesheet()
-        assert ts.today.work_blocks[0].project_id == 1
-        assert ts.today.last_work_block.project_id == 2
+        assert ts.today.work_blocks[0].project_id is None
+        assert ts.today.last_work_block.project_id == 1
+
+
+def test_possible_to_start_workblock_without_selecting_an_existing_projext() -> None:
+    main.cfg.datafile = "2020-09-timesheet.json"
+    handle_command("create_project some_project")
+    with freeze_time("2020-09-23"):  # A Wednesday
+        with patch("builtins.input", side_effect=["0"]):
+            handle_command("start 08:00")
+        ts = load_timesheet()
+        assert ts.today.last_work_block.project_id is None
