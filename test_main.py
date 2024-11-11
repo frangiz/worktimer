@@ -635,7 +635,7 @@ def test_create_project_with_long_name() -> None:
     with pytest.raises(
         ValueError, match="Project name cannot be longer than 50 characters"
     ):
-        handle_command("create_project a" * 51)
+        handle_command("create_project " + "a" * 51)
 
 
 def test_create_project_with_existing_name() -> None:
@@ -715,3 +715,34 @@ def test_possible_to_start_workblock_without_selecting_an_existing_projext() -> 
             handle_command("start 08:00")
         ts = load_timesheet()
         assert ts.today.last_work_block.project_id is None
+
+
+def test_rename_project(capsys) -> None:
+    handle_command("create_project proj1")
+    handle_command("rename_project 1 new proj name")
+    handle_command("list_projects")
+    captured = capsys.readouterr()
+    assert "1: new proj name" in captured.out
+
+
+def test_rename_project_with_empty_name() -> None:
+    handle_command("create_project proj1")
+    with pytest.raises(ValueError, match="Project name cannot be empty"):
+        handle_command("rename_project 1")
+
+
+def test_rename_project_with_long_name() -> None:
+    handle_command("create_project proj1")
+    with pytest.raises(
+        ValueError, match="Project name cannot be longer than 50 characters"
+    ):
+        handle_command("rename_project 1 " + "a" * 51)
+
+
+def test_rename_project_with_existing_name() -> None:
+    handle_command("create_project test_project")
+    handle_command("create_project other_project")
+    with pytest.raises(
+        ValueError, match="Project with name 'other_project' already exists"
+    ):
+        handle_command("rename_project 1 other_project")

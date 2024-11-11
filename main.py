@@ -255,6 +255,9 @@ def handle_command(cmd: str) -> None:
         "create_project": lambda params: create_project(" ".join(params)),
         "list_projects": lambda _: list_projects(),
         "delete_project": lambda params: delete_project(int(params[0])),
+        "rename_project": lambda params: rename_project(
+            int(params[0]), " ".join(params[1:]) if params else None
+        ),
     }
 
     cmd, *params = cmd.split()
@@ -471,7 +474,7 @@ def set_comment(text: Optional[str]) -> None:
     save_timesheet(ts)
 
 
-def create_project(name: str) -> None:
+def create_project(name: Optional[str]) -> None:
     if not name:
         raise ValueError("Project name cannot be empty")
     if len(name) > 50:
@@ -495,6 +498,18 @@ def list_projects() -> None:
 def delete_project(project_id: int) -> None:
     projects = load_projects()
     projects.get_project_by_id(project_id).delete()
+    save_projects(projects)
+
+
+def rename_project(project_id: int, new_name: Optional[str]) -> None:
+    if not new_name:
+        raise ValueError("Project name cannot be empty")
+    if len(new_name) > 50:
+        raise ValueError("Project name cannot be longer than 50 characters")
+    projects = load_projects()
+    if any(p.name == new_name for p in projects):
+        raise ValueError(f"Project with name '{new_name}' already exists")
+    projects.get_project_by_id(project_id).name = new_name
     save_projects(projects)
 
 
@@ -545,6 +560,7 @@ def print_menu():
     print("create_project [name]")
     print("list_projects")
     print("delete_project [id]")
+    print("rename_project [id]")
 
 
 def print_days(days: List[Day]) -> None:
