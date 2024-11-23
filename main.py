@@ -332,8 +332,12 @@ def stop(stop_time: datetime, comment: Optional[str] = None) -> None:
         return
     print(f"Stopping at {stop_time}")
 
+    projects = load_projects()
+    project_id = prompt_for_project() if len(projects) else None
+
     ts.today.last_work_block.stop = stop_time.time()
     ts.today.last_work_block.comment = comment
+    ts.today.last_work_block.project_id = project_id
     ts.today.recalc_flex()
 
     flex_hours = abs(ts.today.flex_minutes) // 60

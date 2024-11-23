@@ -707,7 +707,7 @@ def test_start_second_workblock_with_selecting_project() -> None:
         assert ts.today.last_work_block.project_id == 1
 
 
-def test_possible_to_start_workblock_without_selecting_an_existing_projext() -> None:
+def test_possible_to_start_workblock_without_selecting_an_existing_project() -> None:
     main.cfg.datafile = "2020-09-timesheet.json"
     handle_command("create_project some_project")
     with freeze_time("2020-09-23"):  # A Wednesday
@@ -778,3 +778,41 @@ def test_recalc_only_affects_files_from_current_year() -> None:
         main.cfg.datafile = "2020-09-timesheet.json"
         unchanged_ts = load_timesheet()
         assert unchanged_ts.get_day("2020-09-23").flex_minutes == prev_flex
+
+
+def test_stop_workblock_get_no_project_when_no_projects_is_added() -> None:
+    main.cfg.datafile = "2020-09-timesheet.json"
+    with freeze_time("2020-09-23"):  # A Wednesday
+        handle_command("start 08:00")
+        handle_command("stop 16:30")
+
+        ts = load_timesheet()
+        assert ts.today.last_work_block.project_id is None
+
+
+def test_stop_prompts_for_project_when_projects_exists() -> None:
+    main.cfg.datafile = "2020-09-timesheet.json"
+    handle_command("create_project test_project")
+
+    with freeze_time("2020-09-23"):  # A Wednesday
+        with patch("builtins.input", side_effect=["0"]):
+            handle_command("start 08:00")
+        with patch("builtins.input", side_effect=["1"]):
+            handle_command("stop 16:30")
+
+        ts = load_timesheet()
+        assert ts.today.last_work_block.project_id == 1
+
+
+def test_stop_workblock_with_no_project_selected() -> None:
+    main.cfg.datafile = "2020-09-timesheet.json"
+    handle_command("create_project test_project")
+
+    with freeze_time("2020-09-23"):
+        with patch("builtins.input", side_effect=["1"]):
+            handle_command("start 08:00")
+        with patch("builtins.input", side_effect=["0"]):
+            handle_command("stop 16:30")
+
+        ts = load_timesheet()
+        assert ts.today.last_work_block.project_id is None
