@@ -816,3 +816,20 @@ def test_stop_workblock_with_no_project_selected() -> None:
 
         ts = load_timesheet()
         assert ts.today.last_work_block.project_id is None
+
+
+def test_stop_workblock_suggests_existing_project() -> None:
+    main.cfg.datafile = "2020-09-timesheet.json"
+    handle_command("create_project test_project")
+
+    with freeze_time("2020-09-23"):
+        # Start with project 1 selected
+        with patch("builtins.input", side_effect=["1"]):
+            handle_command("start 08:00")
+
+        # Simulate pressing enter (empty input) to accept suggested project
+        with patch("builtins.input", side_effect=[""]):
+            handle_command("stop 16:30")
+
+        ts = load_timesheet()
+        assert ts.today.last_work_block.project_id == 1

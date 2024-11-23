@@ -333,7 +333,8 @@ def stop(stop_time: datetime, comment: Optional[str] = None) -> None:
     print(f"Stopping at {stop_time}")
 
     projects = load_projects()
-    project_id = prompt_for_project() if len(projects) else None
+    current_project_id = ts.today.last_work_block.project_id
+    project_id = prompt_for_project(current_project_id) if len(projects) else None
 
     ts.today.last_work_block.stop = stop_time.time()
     ts.today.last_work_block.comment = comment
@@ -518,7 +519,7 @@ def rename_project(project_id: int, new_name: Optional[str]) -> None:
     save_projects(projects)
 
 
-def prompt_for_project() -> int:
+def prompt_for_project(default_project_id: Optional[int] = None) -> Optional[int]:
     projects = load_projects()
     print("Select project:")
     print("0: No project")
@@ -526,17 +527,22 @@ def prompt_for_project() -> int:
         if p.deleted:
             continue
         print(f"{p.id}: {p.name}")
+    if default_project_id is not None:
+        default_project_name = next(
+            p.name for p in projects if p.id == default_project_id
+        )
+        print(f"Press enter to keep {default_project_name}")
 
-    project_id = None
-    while project_id is None:
+    while True:
         try:
-            project_id = int(input("> "))
+            user_input = input("> ")
+            if user_input == "" and default_project_id is not None:
+                return default_project_id
+            project_id = int(user_input)
             if project_id == 0 or project_id in (p.id for p in projects):
-                project_id = int(project_id)
+                return project_id if project_id != 0 else None
         except ValueError:
             print("Invalid project id")
-            project_id = None
-    return project_id if project_id else None
 
 
 def calc_total_flex() -> int:
