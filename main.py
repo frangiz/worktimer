@@ -437,7 +437,8 @@ def summary() -> None:
 
 def recalc(action: RecalcAction = RecalcAction.FLEX) -> None:
     if action == RecalcAction.FLEX:
-        for f in cfg.datafile_dir.glob("*-timesheet.json"):
+        curr_year = _today_iso_format()[:4]
+        for f in cfg.datafile_dir.glob(f"{curr_year}-*-timesheet.json"):
             ts = load_timesheet(f.name)
             for _, v in ts.days.items():
                 v.recalc_flex()

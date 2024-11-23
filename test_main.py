@@ -37,7 +37,7 @@ def setup_function(func: Any) -> None:
 
 
 def teardown_function(func: Any) -> None:
-    pass
+    main.cfg.workhours_one_day = 8
 
 
 def write_captured_output(captured_output: str) -> None:
@@ -746,3 +746,35 @@ def test_rename_project_with_existing_name() -> None:
         ValueError, match="Project with name 'other_project' already exists"
     ):
         handle_command("rename_project 1 other_project")
+
+
+def test_recalc_only_affects_files_from_current_year() -> None:
+    # Set up previous year data
+    with freeze_time("2020-09-23"):  # A Wednesday
+        main.cfg.datafile = "2020-09-timesheet.json"
+        handle_command("start 08:00")
+        handle_command("lunch 45")
+        handle_command("stop 16:30")
+        prev_ts = load_timesheet()
+        prev_flex = prev_ts.today.flex_minutes
+        prev_ts.today.flex_minutes = 10  # -15 is correct calculated value
+
+    # Set up current year data
+    with freeze_time("2024-11-22"):  # A Friday
+        main.cfg.datafile = "2024-11-timesheet.json"
+        handle_command("start 08:00")
+        handle_command("lunch 30")
+        handle_command("stop 16:30")
+
+        # Trigger recalc
+        main.cfg.workhours_one_day = 7
+        handle_command("recalc")
+
+        # Verify current year was affected
+        curr_ts = load_timesheet()
+        assert curr_ts.today.flex_minutes != 0
+
+        # Verify previous year was not affected
+        main.cfg.datafile = "2020-09-timesheet.json"
+        unchanged_ts = load_timesheet()
+        assert unchanged_ts.get_day("2020-09-23").flex_minutes == prev_flex
