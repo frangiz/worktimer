@@ -4,6 +4,7 @@ from typing import Any, List
 from unittest.mock import patch
 
 import pytest  # type: ignore
+from _pytest.capture import CaptureResult
 from freezegun import freeze_time  # type: ignore
 
 import main
@@ -44,7 +45,9 @@ def write_captured_output(captured_output: str) -> None:
     Path(main.cfg.datafile_dir, "captured_output.txt").write_text(captured_output)
 
 
-def assert_captured_out_starts_with(expected: List[str], captured: Any) -> None:
+def assert_captured_out_starts_with(
+    expected: List[str], captured: CaptureResult
+) -> None:
     assert expected == captured.out.split("\n")[: len(expected)]
 
 

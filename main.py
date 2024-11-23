@@ -4,7 +4,7 @@ from collections import defaultdict
 from datetime import date, datetime, time, timedelta
 from enum import Enum, auto
 from pathlib import Path
-from typing import DefaultDict, Dict, List, Optional
+from typing import DefaultDict, Dict, List, Optional, Tuple
 
 from dotenv import dotenv_values
 from pydantic import BaseModel, Field, RootModel
@@ -12,6 +12,8 @@ from rich.console import Console
 from rich.table import Table
 
 DEFAULT_LUNCH_DURATION = 30
+MAX_PROJECT_NAME_LENGTH = 50
+DEFAULT_WORK_HOURS = 8
 console = Console()
 
 
@@ -32,7 +34,7 @@ class Config:
             f"{datetime.now().year}-{datetime.now().month:02d}-timesheet.json"
         )
 
-        self.workhours_one_day = 8
+        self.workhours_one_day = DEFAULT_WORK_HOURS
 
         # Override default values
         config = dotenv_values("config.env")
@@ -183,6 +185,28 @@ class ViewSpans(Enum):
 
 class RecalcAction(Enum):
     FLEX = 1
+
+
+class DateRange:
+    @staticmethod
+    def get_range(
+        view_span: ViewSpans, base_date: Optional[date] = None
+    ) -> Tuple[date, date]:
+        today = base_date or datetime.now().date()
+
+        if view_span == ViewSpans.TODAY:
+            return today, today
+
+        if view_span == ViewSpans.WEEK:
+            start_date = today - timedelta(days=today.isoweekday() - 1)
+            return start_date, today
+
+        if view_span == ViewSpans.PREV_WEEK:
+            start_date = today - timedelta(days=today.isoweekday() + 6)
+            end_date = start_date + timedelta(days=6)
+            return start_date, end_date
+
+        raise ValueError(f"Invalid view span: {view_span}")
 
 
 def load_timesheet(datafile: Optional[str] = None) -> Timesheet:
@@ -367,25 +391,24 @@ def lunch(lunch_mins: int) -> None:
     print(f"Added {lunch_mins} mins as lunch")
 
 
-def edit() -> None:
-    subprocess.call(["vim", cfg.datafile_dir.joinpath(cfg.datafile)])
+def edit(editor: str = "vim") -> None:
+    try:
+        filepath = cfg.datafile_dir.joinpath(cfg.datafile)
+        subprocess.run([editor, filepath], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error opening editor: {e}")
+    except FileNotFoundError:
+        print(f"Editor {editor} not found")
 
 
-def view(viewSpan: ViewSpans = ViewSpans.TODAY) -> None:
-    today = datetime.now().date()
-    if viewSpan == ViewSpans.TODAY:
-        start_date = end_date = date.today()
-    elif viewSpan == ViewSpans.WEEK:
-        start_date = today - timedelta(days=today.isoweekday() - 1)
-        end_date = today
-    elif viewSpan == ViewSpans.PREV_WEEK:
-        start_date = today - timedelta(days=today.isoweekday() + 6)
-        end_date = start_date + timedelta(days=6)
-    entries = load_timesheet().get_days(start_date.isoformat(), end_date.isoformat())
+def view(view_span: ViewSpans = ViewSpans.TODAY) -> None:
+    start_date, end_date = DateRange.get_range(view_span)
+    ts = load_timesheet()
+    days = ts.get_days(start_date.isoformat(), end_date.isoformat())
 
-    print_days(entries)
-    if viewSpan in [ViewSpans.WEEK, ViewSpans.PREV_WEEK]:
-        _print_footer(entries)
+    print_days(days)
+    if view_span in [ViewSpans.WEEK, ViewSpans.PREV_WEEK]:
+        _print_footer(days)
 
 
 def summary() -> None:
@@ -451,7 +474,7 @@ def recalc(action: RecalcAction = RecalcAction.FLEX) -> None:
 
 
 def set_time_off(time_off_mins: int) -> None:
-    if time_off_mins < 0 or time_off_mins > 8 * 60:
+    if time_off_mins < 0 or time_off_mins > cfg.workhours_one_day * 60:
         raise ValueError(
             "Invalid timeoff value, must be an int between 0 and 8 inclusive."
         )
@@ -483,8 +506,10 @@ def set_comment(text: Optional[str]) -> None:
 def create_project(name: Optional[str]) -> None:
     if not name:
         raise ValueError("Project name cannot be empty")
-    if len(name) > 50:
-        raise ValueError("Project name cannot be longer than 50 characters")
+    if len(name) > MAX_PROJECT_NAME_LENGTH:
+        raise ValueError(
+            f"Project name cannot be longer than {MAX_PROJECT_NAME_LENGTH} characters"
+        )
     projects = load_projects()
     if any(p.name == name for p in projects):
         raise ValueError(f"Project with name '{name}' already exists")
@@ -510,8 +535,10 @@ def delete_project(project_id: int) -> None:
 def rename_project(project_id: int, new_name: Optional[str]) -> None:
     if not new_name:
         raise ValueError("Project name cannot be empty")
-    if len(new_name) > 50:
-        raise ValueError("Project name cannot be longer than 50 characters")
+    if len(new_name) > MAX_PROJECT_NAME_LENGTH:
+        raise ValueError(
+            f"Project name cannot be longer than {MAX_PROJECT_NAME_LENGTH} characters"
+        )
     projects = load_projects()
     if any(p.name == new_name for p in projects):
         raise ValueError(f"Project with name '{new_name}' already exists")
