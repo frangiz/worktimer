@@ -728,6 +728,16 @@ def test_rename_project(capsys) -> None:
     assert "1: new proj name" in captured.out
 
 
+def test_rename_project_with_no_provided_id() -> None:
+    with pytest.raises(ValueError, match="No project id provided"):
+        handle_command("rename_project")
+
+
+def test_rename_project_with_no_provided_name() -> None:
+    with pytest.raises(ValueError, match="Project name cannot be empty"):
+        handle_command("rename_project 1")
+
+
 def test_rename_project_with_empty_name() -> None:
     handle_command("create_project proj1")
     with pytest.raises(ValueError, match="Project name cannot be empty"):

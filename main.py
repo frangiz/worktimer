@@ -279,9 +279,7 @@ def handle_command(cmd: str) -> None:
         "create_project": lambda params: create_project(" ".join(params)),
         "list_projects": lambda _: list_projects(),
         "delete_project": lambda params: delete_project(int(params[0])),
-        "rename_project": lambda params: rename_project(
-            int(params[0]), " ".join(params[1:]) if params else None
-        ),
+        "rename_project": lambda params: rename_project(" ".join(params)),
     }
 
     cmd, *params = cmd.split()
@@ -532,9 +530,15 @@ def delete_project(project_id: int) -> None:
     save_projects(projects)
 
 
-def rename_project(project_id: int, new_name: Optional[str]) -> None:
-    if not new_name:
+def rename_project(params: str) -> None:
+    parts = params.split(maxsplit=1)
+    if not parts:
+        raise ValueError("No project id provided")
+    if len(parts) < 2:
         raise ValueError("Project name cannot be empty")
+
+    project_id = int(parts[0])
+    new_name = parts[1]
     if len(new_name) > MAX_PROJECT_NAME_LENGTH:
         raise ValueError(
             f"Project name cannot be longer than {MAX_PROJECT_NAME_LENGTH} characters"
