@@ -253,8 +253,7 @@ def get_time_and_comment(params):
             comment = None
         return time, comment
     except ValueError:
-        print("Invalid time format. Expeted format is hh:mm")
-        return None, None
+        raise ValueError("Invalid time format. Expected format is hh:mm")
 
 
 def handle_command(cmd: str) -> None:
@@ -264,6 +263,7 @@ def handle_command(cmd: str) -> None:
     command_map = {
         "start": lambda params: start(get_time_and_comment(params)[0]),
         "stop": lambda params: stop(*get_time_and_comment(params)),
+        "switch": lambda params: switch(get_time_and_comment(params)[0]),
         "lunch": lambda params: (
             lunch(int(params[0])) if params else lunch(DEFAULT_LUNCH_DURATION)
         ),
@@ -369,6 +369,53 @@ def stop(stop_time: datetime, comment: Optional[str] = None) -> None:
         print(f"Flex for today: {flex_hours} hours {flex_mins} mins")
     else:
         print(f"Flex for today is negative: {flex_hours} hours {flex_mins} mins")
+    save_timesheet(ts)
+
+
+def switch(switch_time: Optional[datetime] = None) -> None:
+    """Stop current workblock and start new one at specified time."""
+    if switch_time is None:
+        switch_time = datetime.now().replace(second=0, microsecond=0)
+
+    ts = load_timesheet()
+    if not ts.today.last_work_block.started():
+        raise ValueError("No active work block to switch from")
+    if ts.today.last_work_block.stopped():
+        return
+
+    # Validate switch time
+    current_start = ts.today.last_work_block.start
+    if current_start is None:
+        raise ValueError("Current workblock has no start time")
+
+    if switch_time.time() < current_start:
+        raise ValueError(
+            f"Switch time {switch_time.strftime('%H:%M')} cannot be before workblock "
+            f"start time {current_start.strftime('%H:%M')}"
+        )
+
+    print(f"Switching at {switch_time.strftime('%H:%M')}")
+
+    # Update current workblock
+    projects = load_projects()
+    if len(projects):
+        print("Select project for current workblock:")
+        current_project_id = prompt_for_project(ts.today.last_work_block.project_id)
+        ts.today.last_work_block.project_id = current_project_id
+
+        print("Select project for new workblock:")
+        new_project_id = prompt_for_project()
+    else:
+        current_project_id = None
+        new_project_id = None
+
+    # Stop current and start new workblock
+    ts.today.last_work_block.stop = switch_time.time()
+    ts.today.work_blocks.append(
+        WorkBlock(start=switch_time.time(), project_id=new_project_id)
+    )
+
+    ts.today.recalc_flex()
     save_timesheet(ts)
 
 
@@ -591,6 +638,7 @@ def print_menu():
     print("-- commands --")
     print("start [hh:mm]")
     print("stop [hh:mm]")
+    print("switch [hh:mm]")
     print("lunch [n]")
     print("edit")
     print("view [TODAY|WEEK]")

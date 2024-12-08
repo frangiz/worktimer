@@ -846,3 +846,124 @@ def test_stop_workblock_suggests_existing_project() -> None:
 
         ts = load_timesheet()
         assert ts.today.last_work_block.project_id == 1
+
+
+def test_switch_command_uses_current_time_when_no_time_given() -> None:
+    main.cfg.datafile = "2020-09-timesheet.json"
+    with freeze_time("2020-09-23 09:00"):
+        handle_command("start 08:00")
+        handle_command("switch")
+
+        ts = load_timesheet()
+        assert ts.today.work_blocks[0].stop == time.fromisoformat("09:00:00")
+        assert ts.today.work_blocks[1].start == time.fromisoformat("09:00:00")
+
+
+def test_switch_command_with_specific_time() -> None:
+    main.cfg.datafile = "2020-09-timesheet.json"
+    with freeze_time("2020-09-23"):
+        handle_command("start 08:00")
+        handle_command("switch 10:30")
+
+        ts = load_timesheet()
+        assert ts.today.work_blocks[0].stop == time.fromisoformat("10:30:00")
+        assert ts.today.work_blocks[1].start == time.fromisoformat("10:30:00")
+
+
+def test_switch_command_with_project_selection() -> None:
+    main.cfg.datafile = "2020-09-timesheet.json"
+    handle_command("create_project test_project")
+
+    with freeze_time("2020-09-23"):
+        with patch("builtins.input", side_effect=["1"]):
+            handle_command("start 08:00")
+        with patch("builtins.input", side_effect=["1", "1"]):
+            handle_command("switch 10:30")
+
+        ts = load_timesheet()
+        assert ts.today.work_blocks[0].project_id == 1
+        assert ts.today.work_blocks[1].project_id == 1
+
+
+def test_switch_command_with_no_active_workblock() -> None:
+    main.cfg.datafile = "2020-09-timesheet.json"
+    with freeze_time("2020-09-23"):
+        with pytest.raises(ValueError, match="No active work block to switch from"):
+            handle_command("switch 10:30")
+
+
+def test_switch_command_with_time_before_workblock_start() -> None:
+    main.cfg.datafile = "2020-09-timesheet.json"
+    with freeze_time("2020-09-23"):
+        handle_command("start 08:00")
+
+        with pytest.raises(
+            ValueError,
+            match="Switch time 07:00 cannot be before workblock start time 08:00",
+        ):
+            handle_command("switch 07:00")
+
+        # Verify workblock was not modified
+        ts = load_timesheet()
+        assert ts.today.work_blocks[0].start == time.fromisoformat("08:00:00")
+        assert ts.today.work_blocks[0].stop is None
+        assert len(ts.today.work_blocks) == 1
+
+
+def test_switch_command_multiple_times() -> None:
+    main.cfg.datafile = "2020-09-timesheet.json"
+    with freeze_time("2020-09-23"):
+        handle_command("start 08:00")
+        handle_command("switch 09:00")
+        handle_command("switch 10:00")
+
+        ts = load_timesheet()
+        assert len(ts.today.work_blocks) == 3
+        assert ts.today.work_blocks[0].stop == time.fromisoformat("09:00:00")
+        assert ts.today.work_blocks[1].start == time.fromisoformat("09:00:00")
+        assert ts.today.work_blocks[1].stop == time.fromisoformat("10:00:00")
+        assert ts.today.work_blocks[2].start == time.fromisoformat("10:00:00")
+
+
+def test_switch_command_with_invalid_time_format() -> None:
+    main.cfg.datafile = "2020-09-timesheet.json"
+    with freeze_time("2020-09-23"):
+        handle_command("start 08:00")
+        with pytest.raises(ValueError, match="Invalid time format"):
+            handle_command("switch 1030")
+
+
+def test_switch_command_between_projects() -> None:
+    main.cfg.datafile = "2020-09-timesheet.json"
+    handle_command("create_project project1")
+    handle_command("create_project project2")
+
+    with freeze_time("2020-09-23"):
+        with patch("builtins.input", side_effect=["1"]):
+            handle_command("start 08:00")
+        with patch("builtins.input", side_effect=["1", "2"]):
+            handle_command("switch 09:00")
+
+        ts = load_timesheet()
+        assert ts.today.work_blocks[0].project_id == 1
+        assert ts.today.work_blocks[1].project_id == 2
+
+
+def test_switch_command_changes_project_on_current_and_new_workblock() -> None:
+    main.cfg.datafile = "2020-09-timesheet.json"
+    handle_command("create_project project1")
+    handle_command("create_project project2")
+    handle_command("create_project project3")
+
+    with freeze_time("2020-09-23"):
+        # Start with project1
+        with patch("builtins.input", side_effect=["1"]):
+            handle_command("start 08:00")
+
+        # Switch: change current to project2, new block to project3
+        with patch("builtins.input", side_effect=["2", "3"]):
+            handle_command("switch 09:00")
+
+        ts = load_timesheet()
+        assert ts.today.work_blocks[0].project_id == 2  # Changed to project2
+        assert ts.today.work_blocks[1].project_id == 3  # New block with project3
