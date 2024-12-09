@@ -683,17 +683,19 @@ def _print_footer(days: List[Day]) -> None:
 
 
 def _print_work_blocks(blocks: List[WorkBlock]) -> None:
+    projects = load_projects()
     for block in blocks:
         block_start = block.start.isoformat()[:5] if block.start is not None else ""
         block_stop = block.stop.isoformat()[:5] if block.stop is not None else ""
         if not block.stopped():
             print(f"  {block_start}-")
-            if block.comment:
-                print(f"    {block.comment}")
         else:
             print(f"  {block_start}-{block_stop} => {fmt_mins(block.worked_time)}")
-            if block.comment:
-                print(f"    {block.comment}")
+        if block.comment:
+            print(f"    {block.comment}")
+        if block.project_id is not None:
+            project = projects.get_project_by_id(block.project_id)
+            print(f"    Project: {project.name}")
 
 
 def fmt_mins(mins: int, expand: bool = False) -> str:

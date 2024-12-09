@@ -413,6 +413,33 @@ def test_view_is_case_insensitive(capsys) -> None:
     assert_captured_out_starts_with(expected, captured)
 
 
+def test_view_shows_multiple_projects(capsys) -> None:
+    main.cfg.datafile = "2020-09-timesheet.json"
+    handle_command("create_project project1")
+    handle_command("create_project project2")
+
+    with freeze_time("2020-09-23"):
+        with patch("builtins.input", side_effect=["1", ""]):
+            handle_command("start 08:00")
+            handle_command("stop 10:00")
+        with patch("builtins.input", side_effect=["2", ""]):
+            handle_command("start 10:30")
+            handle_command("stop 16:30")
+
+        capsys.readouterr()
+        handle_command("view")
+
+        captured = capsys.readouterr()
+        expected = [
+            "2020-09-23 | worked time: 8h 0min | lunch: 0min | daily flex: 0min",
+            "  08:00-10:00 => 2h 0min",
+            "    Project: project1",
+            "  10:30-16:30 => 6h 0min",
+            "    Project: project2",
+        ]
+        assert_captured_out_starts_with(expected, captured)
+
+
 def test_summary_month(capsys) -> None:
     main.cfg.datafile = "2023-01-timesheet.json"
     with freeze_time("2023-01-03"):  # A Tuesday
