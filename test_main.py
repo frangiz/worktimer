@@ -994,3 +994,75 @@ def test_switch_command_changes_project_on_current_and_new_workblock() -> None:
         ts = load_timesheet()
         assert ts.today.work_blocks[0].project_id == 2  # Changed to project2
         assert ts.today.work_blocks[1].project_id == 3  # New block with project3
+
+
+def test_project_summary_week(capsys) -> None:
+    main.cfg.datafile = "2020-11-timesheet.json"
+    handle_command("create_project project1")
+    handle_command("create_project project2")
+
+    with freeze_time("2020-11-24"):  # Tuesday
+        with patch("builtins.input", side_effect=["1", ""]):
+            handle_command("start 08:00")
+            handle_command("stop 12:30")  # 4h 30min on project1
+        with patch("builtins.input", side_effect=["2", ""]):
+            handle_command("start 13:00")
+            handle_command("stop 17:15")  # 4h 15min on project2
+
+    with freeze_time("2020-11-28"):  # Saturday
+        with patch("builtins.input", side_effect=["1", ""]):
+            handle_command("start 10:00")
+            handle_command("stop 11:45")  # 1h 45min on project1
+
+    capsys.readouterr()
+    with freeze_time("2020-11-28"):  # Saturday
+        handle_command("project_summary week")
+
+    captured = capsys.readouterr()
+    write_captured_output(captured.out)
+    expected = [
+        "┏━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━┓",  # noqa
+        "┃ Project  ┃ Mon 23 ┃ Tue 24   ┃ Wed 25 ┃ Thu 26 ┃ Fri 27 ┃ Sat 28   ┃ Sun 29 ┃ Total     ┃",  # noqa
+        "┡━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━┩",  # noqa
+        "│ project1 │        │ 4h 30min │        │        │        │ 1h 45min │        │ 6h 15min  │",  # noqa
+        "├──────────┼────────┼──────────┼────────┼────────┼────────┼──────────┼────────┼───────────┤",  # noqa
+        "│ project2 │        │ 4h 15min │        │        │        │          │        │ 4h 15min  │",  # noqa
+        "├──────────┼────────┼──────────┼────────┼────────┼────────┼──────────┼────────┼───────────┤",  # noqa
+        "│ Total    │        │ 8h 45min │        │        │        │ 1h 45min │        │ 10h 30min │",  # noqa
+        "└──────────┴────────┴──────────┴────────┴────────┴────────┴──────────┴────────┴───────────┘",  # noqa
+    ]
+    assert_captured_out_starts_with(expected, captured)
+
+
+def test_project_summary_prev_week(capsys) -> None:
+    main.cfg.datafile = "2020-11-timesheet.json"
+    handle_command("create_project project1")
+    handle_command("create_project project2")
+
+    with freeze_time("2020-11-17"):  # Previous Tuesday
+        with patch("builtins.input", side_effect=["1", ""]):
+            handle_command("start 08:00")
+            handle_command("stop 12:25")  # 4h 25min on project1
+
+    with freeze_time("2020-11-21"):  # Previous Saturday
+        with patch("builtins.input", side_effect=["2", ""]):
+            handle_command("start 09:00")
+            handle_command("stop 16:45")  # 7h 45min on project2
+
+    with freeze_time("2020-11-24"):  # Current Tuesday
+        capsys.readouterr()
+        handle_command("project_summary prev_week")
+
+    captured = capsys.readouterr()
+    expected = [
+        "┏━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━┓",  # noqa
+        "┃ Project  ┃ Mon 16 ┃ Tue 17   ┃ Wed 18 ┃ Thu 19 ┃ Fri 20 ┃ Sat 21   ┃ Sun 22 ┃ Total     ┃",  # noqa
+        "┡━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━┩",  # noqa
+        "│ project1 │        │ 4h 25min │        │        │        │          │        │ 4h 25min  │",  # noqa
+        "├──────────┼────────┼──────────┼────────┼────────┼────────┼──────────┼────────┼───────────┤",  # noqa
+        "│ project2 │        │          │        │        │        │ 7h 45min │        │ 7h 45min  │",  # noqa
+        "├──────────┼────────┼──────────┼────────┼────────┼────────┼──────────┼────────┼───────────┤",  # noqa
+        "│ Total    │        │ 4h 25min │        │        │        │ 7h 45min │        │ 12h 10min │",  # noqa
+        "└──────────┴────────┴──────────┴────────┴────────┴────────┴──────────┴────────┴───────────┘",  # noqa
+    ]
+    assert_captured_out_starts_with(expected, captured)
