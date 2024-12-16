@@ -14,7 +14,7 @@ from rich.table import Table
 DEFAULT_LUNCH_DURATION = 30
 MAX_PROJECT_NAME_LENGTH = 50
 DEFAULT_WORK_HOURS = 8
-console = Console()
+console = Console(width=120)
 
 
 class Config:
@@ -280,6 +280,9 @@ def handle_command(cmd: str) -> None:
         "list_projects": lambda _: list_projects(),
         "delete_project": lambda params: delete_project(int(params[0])),
         "rename_project": lambda params: rename_project(" ".join(params)),
+        "project_summary": lambda params: project_summary(
+            ViewSpans[params[0].upper()] if params else ViewSpans.WEEK
+        ),
     }
 
     cmd, *params = cmd.split()
@@ -595,6 +598,55 @@ def rename_project(params: str) -> None:
         raise ValueError(f"Project with name '{new_name}' already exists")
     projects.get_project_by_id(project_id).name = new_name
     save_projects(projects)
+
+
+def project_summary(view_span: ViewSpans = ViewSpans.WEEK) -> None:
+    start_date, end_date = DateRange.get_range(view_span)
+    ts = load_timesheet()
+    projects = load_projects()
+
+    table = Table()
+    table.add_column("Project")
+    for day in range(7):
+        current = start_date + timedelta(days=day)
+        table.add_column(f"{current.strftime('%a %d')}")
+    table.add_column("Total")
+
+    # Calculate project times
+    project_times: DefaultDict[int, DefaultDict[date, int]] = defaultdict(
+        lambda: defaultdict(int)
+    )
+    for day in ts.get_days(start_date.isoformat(), end_date.isoformat()):
+        for block in day.work_blocks:
+            if block.project_id:
+                project_times[block.project_id][day.this_date] += block.worked_time
+
+    # Add rows with proper formatting
+    for project in projects:
+        if not project.deleted:
+            row = [project.name]
+            total = 0
+            for day in range(7):
+                current = start_date + timedelta(days=day)
+                mins = project_times[project.id][current]
+                total += mins
+                row.append(fmt_mins(mins) if mins else "")
+            row.append(fmt_mins(total))
+            table.add_row(*row)
+            table.add_section()
+
+    # Add total row
+    totals = ["Total"]
+    grand_total = 0
+    for day in range(7):
+        current = start_date + timedelta(days=day)
+        day_total = sum(times[current] for times in project_times.values())
+        grand_total += day_total
+        totals.append(fmt_mins(day_total) if day_total else "")
+    totals.append(fmt_mins(grand_total))
+    table.add_row(*totals)
+
+    console.print(table)
 
 
 def prompt_for_project(default_project_id: Optional[int] = None) -> Optional[int]:
