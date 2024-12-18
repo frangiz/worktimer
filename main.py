@@ -620,20 +620,24 @@ def project_summary(view_span: ViewSpans = ViewSpans.WEEK) -> None:
         for block in day.work_blocks:
             if block.project_id:
                 project_times[block.project_id][day.this_date] += block.worked_time
+            else:
+                project_times[0][day.this_date] += block.worked_time
 
     # Add rows with proper formatting
+    projects.add_project(Project(id=0, name="no project"))
     for project in projects:
-        if not project.deleted:
-            row = [project.name]
-            total = 0
-            for day in range(7):
-                current = start_date + timedelta(days=day)
-                mins = project_times[project.id][current]
-                total += mins
-                row.append(fmt_mins(mins) if mins else "")
-            row.append(fmt_mins(total))
-            table.add_row(*row)
-            table.add_section()
+        if project.id not in project_times:
+            continue
+        row = [project.name]
+        total = 0
+        for day in range(7):
+            current = start_date + timedelta(days=day)
+            mins = project_times[project.id][current]
+            total += mins
+            row.append(fmt_mins(mins) if mins else "")
+        row.append(fmt_mins(total))
+        table.add_row(*row)
+        table.add_section()
 
     # Add total row
     totals = ["Total"]

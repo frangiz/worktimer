@@ -1000,6 +1000,12 @@ def test_project_summary_week(capsys) -> None:
     main.cfg.datafile = "2020-11-timesheet.json"
     handle_command("create_project project1")
     handle_command("create_project project2")
+    handle_command("create_project project3")  # should not be listed in the table
+
+    with freeze_time("2020-11-23"):  # Monday
+        with patch("builtins.input", side_effect=["0", "0"]):
+            handle_command("start 08:00")
+            handle_command("stop 12:30")  # 4h 30min on no project
 
     with freeze_time("2020-11-24"):  # Tuesday
         with patch("builtins.input", side_effect=["1", ""]):
@@ -1021,15 +1027,17 @@ def test_project_summary_week(capsys) -> None:
     captured = capsys.readouterr()
     write_captured_output(captured.out)
     expected = [
-        "┏━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━┓",  # noqa
-        "┃ Project  ┃ Mon 23 ┃ Tue 24   ┃ Wed 25 ┃ Thu 26 ┃ Fri 27 ┃ Sat 28   ┃ Sun 29 ┃ Total     ┃",  # noqa
-        "┡━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━┩",  # noqa
-        "│ project1 │        │ 4h 30min │        │        │        │ 1h 45min │        │ 6h 15min  │",  # noqa
-        "├──────────┼────────┼──────────┼────────┼────────┼────────┼──────────┼────────┼───────────┤",  # noqa
-        "│ project2 │        │ 4h 15min │        │        │        │          │        │ 4h 15min  │",  # noqa
-        "├──────────┼────────┼──────────┼────────┼────────┼────────┼──────────┼────────┼───────────┤",  # noqa
-        "│ Total    │        │ 8h 45min │        │        │        │ 1h 45min │        │ 10h 30min │",  # noqa
-        "└──────────┴────────┴──────────┴────────┴────────┴────────┴──────────┴────────┴───────────┘",  # noqa
+        "┏━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┓",  # noqa
+        "┃ Project    ┃ Mon 23   ┃ Tue 24   ┃ Wed 25 ┃ Thu 26 ┃ Fri 27 ┃ Sat 28   ┃ Sun 29 ┃ Total    ┃",  # noqa
+        "┡━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━┩",  # noqa
+        "│ project1   │          │ 4h 30min │        │        │        │ 1h 45min │        │ 6h 15min │",  # noqa
+        "├────────────┼──────────┼──────────┼────────┼────────┼────────┼──────────┼────────┼──────────┤",  # noqa
+        "│ project2   │          │ 4h 15min │        │        │        │          │        │ 4h 15min │",  # noqa
+        "├────────────┼──────────┼──────────┼────────┼────────┼────────┼──────────┼────────┼──────────┤",  # noqa
+        "│ no project │ 4h 30min │          │        │        │        │          │        │ 4h 30min │",  # noqa
+        "├────────────┼──────────┼──────────┼────────┼────────┼────────┼──────────┼────────┼──────────┤",  # noqa
+        "│ Total      │ 4h 30min │ 8h 45min │        │        │        │ 1h 45min │        │ 15h 0min │",  # noqa
+        "└────────────┴──────────┴──────────┴────────┴────────┴────────┴──────────┴────────┴──────────┘",  # noqa
     ]
     assert_captured_out_starts_with(expected, captured)
 
@@ -1054,6 +1062,7 @@ def test_project_summary_prev_week(capsys) -> None:
         handle_command("project_summary prev_week")
 
     captured = capsys.readouterr()
+    write_captured_output(captured.out)
     expected = [
         "┏━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━┓",  # noqa
         "┃ Project  ┃ Mon 16 ┃ Tue 17   ┃ Wed 18 ┃ Thu 19 ┃ Fri 20 ┃ Sat 21   ┃ Sun 22 ┃ Total     ┃",  # noqa
