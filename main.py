@@ -64,12 +64,13 @@ class WorkBlock(BaseModel):
     stop: Optional[time] = None
     comment: Optional[str] = None
     project_id: Optional[int] = None
+    lunch: int = 0
 
     @property
     def worked_time(self) -> int:
         if not self.started() or not self.stopped():
             return 0
-        return time_diff(self.stop, self.start)
+        return time_diff(self.stop, self.start) - self.lunch
 
     def started(self) -> bool:
         return self.start is not None
@@ -83,7 +84,6 @@ class WorkBlock(BaseModel):
 
 class Day(BaseModel):
     this_date: date
-    lunch: int = 0
     flex_minutes: int = 0
     work_blocks: List[WorkBlock] = Field(default_factory=lambda: [])
     time_off_minutes: int = 0
@@ -96,8 +96,11 @@ class Day(BaseModel):
 
     @property
     def worked_time(self) -> int:
-        worked_mins = sum(wt.worked_time for wt in self.work_blocks)
-        return 0 if worked_mins == 0 else worked_mins - self.lunch
+        return sum(wt.worked_time for wt in self.work_blocks)
+
+    @property
+    def lunch(self) -> int:
+        return sum(wt.lunch for wt in self.work_blocks)
 
     def recalc_flex(self) -> None:
         expected_worktime_in_mins = cfg.workhours_one_day * 60
@@ -294,26 +297,30 @@ def handle_command(cmd: str) -> None:
 
 
 def _print_estimated_endtime_for_today(
-    work_blocks: List[WorkBlock], lunch: int = 30, timeoff: int = 0
+    work_blocks: List[WorkBlock], lunch: int = DEFAULT_LUNCH_DURATION, timeoff: int = 0
 ) -> None:
     mins_left_to_work = (
         (cfg.workhours_one_day * 60)
-        + lunch
         - timeoff
         - sum(wt.worked_time for wt in work_blocks)
     )
     if not work_blocks[-1].start:
         return
+    actual_lunch = sum(wt.lunch for wt in work_blocks)
+    estimated_lunch_left_today = 0 if actual_lunch else lunch
     work_end_with_lunch = (
         (
             datetime.combine(date.today(), work_blocks[-1].start)
             + timedelta(minutes=mins_left_to_work)
+            + timedelta(minutes=estimated_lunch_left_today)
         )
         .time()
         .replace(second=0, microsecond=0)
     )
+    todays_lunch = actual_lunch if actual_lunch else lunch
     print(
-        f"Estimated end time for today with {lunch} min lunch is {work_end_with_lunch}"
+        f"Estimated end time for today with {todays_lunch}"
+        f" min lunch is {work_end_with_lunch}"
     )
 
 
@@ -430,10 +437,11 @@ def lunch(lunch_mins: int) -> None:
         return
     if ts.today.lunch != 0:
         return
+    # TODO: Check that lunch duration is not too long
 
     _print_estimated_endtime_for_today(ts.today.work_blocks, lunch_mins)
 
-    ts.today.lunch = lunch_mins
+    ts.today.last_work_block.lunch = lunch_mins
     ts.today.recalc_flex()
     save_timesheet(ts)
     print(f"Added {lunch_mins} mins as lunch")

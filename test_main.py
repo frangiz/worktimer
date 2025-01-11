@@ -266,7 +266,7 @@ def test_view_today(capsys) -> None:
 
     expected = [
         "2020-11-24 | worked time: 8h 20min | lunch: 25min | daily flex: 20min",
-        "  08:02-14:21 => 6h 19min",
+        "  08:02-14:21 => 5h 54min",
         "  15:01-17:27 => 2h 26min",
     ]
     assert_captured_out_starts_with(expected, captured)
@@ -338,10 +338,10 @@ def test_view_week(capsys) -> None:
         "2020-11-23 | worked time: 0h 0min | lunch: 0min | daily flex: 0min",
         "",
         "2020-11-24 | worked time: 7h 58min | lunch: 30min | daily flex: -2min",
-        "  08:02-16:30 => 8h 28min",
+        "  08:02-16:30 => 7h 58min",
         "",
         "2020-11-25 | worked time: 8h 20min | lunch: 25min | daily flex: 20min",
-        "  08:02-14:21 => 6h 19min",
+        "  08:02-14:21 => 5h 54min",
         "  15:01-17:27 => 2h 26min",
         "---",
         "Weekly flex: 18min",
@@ -378,10 +378,10 @@ def test_view_prev_week(capsys) -> None:
         "2020-11-23 | worked time: 0h 0min | lunch: 0min | daily flex: 0min",
         "",
         "2020-11-24 | worked time: 7h 58min | lunch: 30min | daily flex: -2min",
-        "  08:02-16:30 => 8h 28min",
+        "  08:02-16:30 => 7h 58min",
         "",
         "2020-11-25 | worked time: 8h 20min | lunch: 25min | daily flex: 20min",
-        "  08:02-14:21 => 6h 19min",
+        "  08:02-14:21 => 5h 54min",
         "  15:01-17:27 => 2h 26min",
         "",
         "2020-11-26 | worked time: 0h 0min | lunch: 0min | daily flex: 0min",
