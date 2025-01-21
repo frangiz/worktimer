@@ -428,6 +428,9 @@ def switch(switch_time: Optional[datetime] = None) -> None:
     ts.today.recalc_flex()
     save_timesheet(ts)
 
+    if len(projects) and new_project_id is not None:
+        print(f"Switching to project {projects.get_project_by_id(new_project_id).name}")
+
 
 def lunch(lunch_mins: int) -> None:
     ts = load_timesheet()
