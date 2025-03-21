@@ -209,6 +209,19 @@ class DateRange:
             end_date = start_date + timedelta(days=6)
             return start_date, end_date
 
+        if view_span == ViewSpans.MONTH:
+            start_date = today.replace(day=1)
+            # Last day of current month
+            if today.month == 12:
+                last_day = today.replace(
+                    year=today.year + 1, month=1, day=1
+                ) - timedelta(days=1)
+            else:
+                last_day = today.replace(month=today.month + 1, day=1) - timedelta(
+                    days=1
+                )
+            return start_date, last_day
+
         raise ValueError(f"Invalid view span: {view_span}")
 
 
@@ -661,6 +674,7 @@ def project_summary(view_span: ViewSpans = ViewSpans.WEEK) -> None:
     totals.append(fmt_mins(grand_total))
     table.add_row(*totals)
 
+    console.print(f"Week {start_date.isocalendar()[1]}")
     console.print(table)
 
 

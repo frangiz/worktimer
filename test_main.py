@@ -1027,6 +1027,7 @@ def test_project_summary_week(capsys) -> None:
     captured = capsys.readouterr()
     write_captured_output(captured.out)
     expected = [
+        "Week 48",
         "┏━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┓",  # noqa
         "┃ Project    ┃ Mon 23   ┃ Tue 24   ┃ Wed 25 ┃ Thu 26 ┃ Fri 27 ┃ Sat 28   ┃ Sun 29 ┃ Total    ┃",  # noqa
         "┡━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━┩",  # noqa
@@ -1064,6 +1065,7 @@ def test_project_summary_prev_week(capsys) -> None:
     captured = capsys.readouterr()
     write_captured_output(captured.out)
     expected = [
+        "Week 47",
         "┏━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━┓",  # noqa
         "┃ Project  ┃ Mon 16 ┃ Tue 17   ┃ Wed 18 ┃ Thu 19 ┃ Fri 20 ┃ Sat 21   ┃ Sun 22 ┃ Total     ┃",  # noqa
         "┡━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━┩",  # noqa
@@ -1073,5 +1075,99 @@ def test_project_summary_prev_week(capsys) -> None:
         "├──────────┼────────┼──────────┼────────┼────────┼────────┼──────────┼────────┼───────────┤",  # noqa
         "│ Total    │        │ 4h 25min │        │        │        │ 7h 45min │        │ 12h 10min │",  # noqa
         "└──────────┴────────┴──────────┴────────┴────────┴────────┴──────────┴────────┴───────────┘",  # noqa
+    ]
+    assert_captured_out_starts_with(expected, captured)
+
+
+@pytest.mark.xfail(
+    reason="Implementation pending for project_summary month view", strict=True
+)
+def test_project_summary_month(capsys) -> None:
+    main.cfg.datafile = "2023-01-timesheet.json"
+    handle_command("create_project project1")
+    handle_command("create_project project2")
+
+    # Work on different days across the month
+    with freeze_time("2023-01-01"):  # Sunday, last day of week 52 (2022)
+        with patch("builtins.input", side_effect=["1", ""]):
+            handle_command("start 10:00")
+            handle_command("stop 11:30")  # 1h 30min on project1
+
+    with freeze_time("2023-01-03"):  # Tuesday week 1
+        with patch("builtins.input", side_effect=["1", ""]):
+            handle_command("start 08:00")
+            handle_command("stop 12:45")  # 4h 45min on project1
+
+    with freeze_time("2023-01-10"):  # Tuesday week 2
+        with patch("builtins.input", side_effect=["2", ""]):
+            handle_command("start 09:00")
+            handle_command("stop 17:00")  # 8h on project2
+
+    with freeze_time("2023-01-24"):  # Tuesday week 4
+        with patch("builtins.input", side_effect=["1", ""]):
+            handle_command("start 08:30")
+            handle_command("stop 16:30")  # 8h on project1
+
+    with freeze_time("2023-01-31"):  # Tuesday week 5 (partial week)
+        with patch("builtins.input", side_effect=["2", ""]):
+            handle_command("start 10:00")
+            handle_command("stop 12:30")  # 2h 30min on project2
+
+    # Run project_summary month command
+    with freeze_time("2023-01-31"):
+        capsys.readouterr()  # Clear buffer
+        handle_command("project_summary month")
+
+    captured = capsys.readouterr()
+    write_captured_output(captured.out)
+
+    # Should show one table per week in January 2023, only showing days in January
+    expected = [
+        "Week 52",
+        "┏━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┓",
+        "┃ Project  ┃ Sun 1    ┃ Total    ┃",
+        "┡━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━┩",
+        "│ project1 │ 1h 30min │ 1h 30min │",
+        "├──────────┼──────────┼──────────┤",
+        "│ Total    │ 1h 30min │ 1h 30min │",
+        "└──────────┴──────────┴──────────┘",
+        "",
+        "Week 1",
+        "┏━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━┓",  # noqa
+        "┃ Project  ┃ Mon 2  ┃ Tue 3    ┃ Wed 4  ┃ Thu 5  ┃ Fri 6  ┃ Sat 7  ┃ Sun 8  ┃ Total     ┃",  # noqa
+        "┡━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━┩",  # noqa
+        "│ project1 │        │ 4h 45min │        │        │        │        │        │ 4h 45min  │",  # noqa
+        "├──────────┼────────┼──────────┼────────┼────────┼────────┼────────┼────────┼───────────┤",  # noqa
+        "│ Total    │        │ 4h 45min │        │        │        │        │        │ 4h 45min  │",  # noqa
+        "└──────────┴────────┴──────────┴────────┴────────┴────────┴────────┴────────┴───────────┘",  # noqa
+        "",
+        "Week 2",
+        "┏━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━┓",  # noqa
+        "┃ Project  ┃ Mon 9  ┃ Tue 10   ┃ Wed 11 ┃ Thu 12 ┃ Fri 13 ┃ Sat 14 ┃ Sun 15 ┃ Total     ┃",  # noqa
+        "┡━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━┩",  # noqa
+        "│ project2 │        │ 8h 0min  │        │        │        │        │        │ 8h 0min   │",  # noqa
+        "├──────────┼────────┼──────────┼────────┼────────┼────────┼────────┼────────┼───────────┤",  # noqa
+        "│ Total    │        │ 8h 0min  │        │        │        │        │        │ 8h 0min   │",  # noqa
+        "└──────────┴────────┴──────────┴────────┴────────┴────────┴────────┴────────┴───────────┘",  # noqa
+        "",
+        "Week 4",
+        "┏━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━┓",  # noqa
+        "┃ Project  ┃ Mon 23 ┃ Tue 24 ┃ Wed 25 ┃ Thu 26 ┃ Fri 27 ┃ Sat 28 ┃ Sun 29 ┃ Total ┃",  # noqa
+        "┡━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━┩",  # noqa
+        "│ Total    │        │        │        │        │        │        │        │       │",  # noqa
+        "└──────────┴────────┴────────┴────────┴────────┴────────┴────────┴────────┴───────┘",  # noqa
+        "",
+        "Week 5",
+        "┏━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━┓",
+        "┃ Project  ┃ Mon 30 ┃ Tue 31   ┃ Total  ┃",
+        "┡━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━┩",
+        "│ project2 │        │ 2h 30min │ 2h 30m │",
+        "├──────────┼────────┼──────────┼────────┤",
+        "│ Total    │        │ 2h 30min │ 2h 30m │",
+        "└──────────┴────────┴──────────┴────────┘",
+        "",
+        "Month Total:",
+        "  project1: 6h 15min",
+        "  project2: 10h 30min",
     ]
     assert_captured_out_starts_with(expected, captured)
