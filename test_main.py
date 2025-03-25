@@ -1171,3 +1171,28 @@ def test_project_summary_month(capsys) -> None:
         "  project2: 10h 30min",
     ]
     assert_captured_out_starts_with(expected, captured)
+
+
+def test_help_command(capsys) -> None:
+    handle_command("help")
+    captured = capsys.readouterr()
+    write_captured_output(captured.out)
+    expected = [
+        "-- commands --",
+        "start [hh:mm]",
+        "stop [hh:mm]",
+        "switch [hh:mm]",
+        "lunch [n]",
+        "edit",
+        "view [TODAY|WEEK]",
+        "summary [MONTH]",
+        "recalc [FLEX]",
+        "timeoff [hours]",
+        "target_hours [hours]",
+        "comment [the comment]",
+        "create_project [name]",
+        "list_projects",
+        "delete_project [id]",
+        "rename_project [id]",
+    ]
+    assert_captured_out_starts_with(expected, captured)

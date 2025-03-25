@@ -299,6 +299,7 @@ def handle_command(cmd: str) -> None:
         "project_summary": lambda params: project_summary(
             ViewSpans[params[0].upper()] if params else ViewSpans.WEEK
         ),
+        "help": lambda _: print_menu(),
     }
 
     cmd, *params = cmd.split()
