@@ -1,4 +1,4 @@
-from datetime import time
+from datetime import date, time
 from pathlib import Path
 from typing import Any, List
 from unittest.mock import patch
@@ -13,6 +13,7 @@ from main import (
     Timesheet,
     calc_total_flex,
     fmt_mins,
+    get_week_start_dates,
     handle_command,
     load_timesheet,
     save_timesheet,
@@ -1079,9 +1080,6 @@ def test_project_summary_prev_week(capsys) -> None:
     assert_captured_out_starts_with(expected, captured)
 
 
-@pytest.mark.xfail(
-    reason="Implementation pending for project_summary month view", strict=True
-)
 def test_project_summary_month(capsys) -> None:
     main.cfg.datafile = "2023-01-timesheet.json"
     handle_command("create_project project1")
@@ -1102,6 +1100,8 @@ def test_project_summary_month(capsys) -> None:
         with patch("builtins.input", side_effect=["2", ""]):
             handle_command("start 09:00")
             handle_command("stop 17:00")  # 8h on project2
+
+    # Nothing on week 3
 
     with freeze_time("2023-01-24"):  # Tuesday week 4
         with patch("builtins.input", side_effect=["1", ""]):
@@ -1125,7 +1125,7 @@ def test_project_summary_month(capsys) -> None:
     expected = [
         "Week 52",
         "┏━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┓",
-        "┃ Project  ┃ Sun 1    ┃ Total    ┃",
+        "┃ Project  ┃ Sun 01   ┃ Total    ┃",
         "┡━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━┩",
         "│ project1 │ 1h 30min │ 1h 30min │",
         "├──────────┼──────────┼──────────┤",
@@ -1133,41 +1133,50 @@ def test_project_summary_month(capsys) -> None:
         "└──────────┴──────────┴──────────┘",
         "",
         "Week 1",
-        "┏━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━┓",  # noqa
-        "┃ Project  ┃ Mon 2  ┃ Tue 3    ┃ Wed 4  ┃ Thu 5  ┃ Fri 6  ┃ Sat 7  ┃ Sun 8  ┃ Total     ┃",  # noqa
-        "┡━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━┩",  # noqa
-        "│ project1 │        │ 4h 45min │        │        │        │        │        │ 4h 45min  │",  # noqa
-        "├──────────┼────────┼──────────┼────────┼────────┼────────┼────────┼────────┼───────────┤",  # noqa
-        "│ Total    │        │ 4h 45min │        │        │        │        │        │ 4h 45min  │",  # noqa
-        "└──────────┴────────┴──────────┴────────┴────────┴────────┴────────┴────────┴───────────┘",  # noqa
+        "┏━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┓",  # noqa
+        "┃ Project  ┃ Mon 02 ┃ Tue 03   ┃ Wed 04 ┃ Thu 05 ┃ Fri 06 ┃ Sat 07 ┃ Sun 08 ┃ Total    ┃",  # noqa
+        "┡━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━┩",  # noqa
+        "│ project1 │        │ 4h 45min │        │        │        │        │        │ 4h 45min │",  # noqa
+        "├──────────┼────────┼──────────┼────────┼────────┼────────┼────────┼────────┼──────────┤",  # noqa
+        "│ Total    │        │ 4h 45min │        │        │        │        │        │ 4h 45min │",  # noqa
+        "└──────────┴────────┴──────────┴────────┴────────┴────────┴────────┴────────┴──────────┘",  # noqa
         "",
         "Week 2",
-        "┏━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━┓",  # noqa
-        "┃ Project  ┃ Mon 9  ┃ Tue 10   ┃ Wed 11 ┃ Thu 12 ┃ Fri 13 ┃ Sat 14 ┃ Sun 15 ┃ Total     ┃",  # noqa
-        "┡━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━┩",  # noqa
-        "│ project2 │        │ 8h 0min  │        │        │        │        │        │ 8h 0min   │",  # noqa
-        "├──────────┼────────┼──────────┼────────┼────────┼────────┼────────┼────────┼───────────┤",  # noqa
-        "│ Total    │        │ 8h 0min  │        │        │        │        │        │ 8h 0min   │",  # noqa
-        "└──────────┴────────┴──────────┴────────┴────────┴────────┴────────┴────────┴───────────┘",  # noqa
+        "┏━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━━┓",  # noqa
+        "┃ Project  ┃ Mon 09 ┃ Tue 10  ┃ Wed 11 ┃ Thu 12 ┃ Fri 13 ┃ Sat 14 ┃ Sun 15 ┃ Total   ┃",  # noqa
+        "┡━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━━┩",  # noqa
+        "│ project2 │        │ 8h 0min │        │        │        │        │        │ 8h 0min │",  # noqa
+        "├──────────┼────────┼─────────┼────────┼────────┼────────┼────────┼────────┼─────────┤",  # noqa
+        "│ Total    │        │ 8h 0min │        │        │        │        │        │ 8h 0min │",  # noqa
+        "└──────────┴────────┴─────────┴────────┴────────┴────────┴────────┴────────┴─────────┘",  # noqa
+        "",
+        "Week 3",
+        "┏━━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━┓",  # noqa
+        "┃ Project ┃ Mon 16 ┃ Tue 17 ┃ Wed 18 ┃ Thu 19 ┃ Fri 20 ┃ Sat 21 ┃ Sun 22 ┃ Total ┃",  # noqa
+        "┡━━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━┩",  # noqa
+        "│ Total   │        │        │        │        │        │        │        │ 0min  │",  # noqa
+        "└─────────┴────────┴────────┴────────┴────────┴────────┴────────┴────────┴───────┘",  # noqa
         "",
         "Week 4",
-        "┏━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━┓",  # noqa
-        "┃ Project  ┃ Mon 23 ┃ Tue 24 ┃ Wed 25 ┃ Thu 26 ┃ Fri 27 ┃ Sat 28 ┃ Sun 29 ┃ Total ┃",  # noqa
-        "┡━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━┩",  # noqa
-        "│ Total    │        │        │        │        │        │        │        │       │",  # noqa
-        "└──────────┴────────┴────────┴────────┴────────┴────────┴────────┴────────┴───────┘",  # noqa
+        "┏━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━━┓",  # noqa
+        "┃ Project  ┃ Mon 23 ┃ Tue 24  ┃ Wed 25 ┃ Thu 26 ┃ Fri 27 ┃ Sat 28 ┃ Sun 29 ┃ Total   ┃",  # noqa
+        "┡━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━━┩",  # noqa
+        "│ project1 │        │ 8h 0min │        │        │        │        │        │ 8h 0min │",  # noqa
+        "├──────────┼────────┼─────────┼────────┼────────┼────────┼────────┼────────┼─────────┤",  # noqa
+        "│ Total    │        │ 8h 0min │        │        │        │        │        │ 8h 0min │",  # noqa
+        "└──────────┴────────┴─────────┴────────┴────────┴────────┴────────┴────────┴─────────┘",  # noqa
         "",
         "Week 5",
-        "┏━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━┓",
-        "┃ Project  ┃ Mon 30 ┃ Tue 31   ┃ Total  ┃",
-        "┡━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━┩",
-        "│ project2 │        │ 2h 30min │ 2h 30m │",
-        "├──────────┼────────┼──────────┼────────┤",
-        "│ Total    │        │ 2h 30min │ 2h 30m │",
-        "└──────────┴────────┴──────────┴────────┘",
+        "┏━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┓",
+        "┃ Project  ┃ Mon 30 ┃ Tue 31   ┃ Total    ┃",
+        "┡━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━┩",
+        "│ project2 │        │ 2h 30min │ 2h 30min │",
+        "├──────────┼────────┼──────────┼──────────┤",
+        "│ Total    │        │ 2h 30min │ 2h 30min │",
+        "└──────────┴────────┴──────────┴──────────┘",
         "",
-        "Month Total:",
-        "  project1: 6h 15min",
+        "Month total:",
+        "  project1: 14h 15min",
         "  project2: 10h 30min",
     ]
     assert_captured_out_starts_with(expected, captured)
@@ -1196,3 +1205,46 @@ def test_help_command(capsys) -> None:
         "rename_project [id]",
     ]
     assert_captured_out_starts_with(expected, captured)
+
+
+def test_get_week_start_dates() -> None:
+    """Test the get_week_start_dates function with various date ranges."""
+    # Test case 1: start_date is a Monday, end_date is the same day
+    monday = date(2023, 1, 2)  # A Monday
+    result = get_week_start_dates(monday, monday)
+    assert result == [monday]
+
+    # Test case 2: start_date is a Monday, end_date is the next Monday
+    next_monday = date(2023, 1, 9)  # Next Monday
+    result = get_week_start_dates(monday, next_monday)
+    assert result == [monday, next_monday]
+
+    # Test case 3: start_date is a Wednesday, end_date is the Sunday in same week
+    wednesday = date(2023, 1, 4)  # A Wednesday
+    sunday = date(2023, 1, 8)  # The following Sunday
+    result = get_week_start_dates(wednesday, sunday)
+    assert result == [wednesday]  # Only the start_date, no Mondays in this range
+
+    # Test case 4: start_date is mid-week, end_date spans multiple weeks
+    end_date = date(2023, 1, 25)  # A Wednesday, 3 weeks after the start
+    result = get_week_start_dates(wednesday, end_date)
+    expected = [
+        wednesday,  # start_date (Wed Jan 4)
+        date(2023, 1, 9),  # First Monday (Jan 9)
+        date(2023, 1, 16),  # Second Monday (Jan 16)
+        date(2023, 1, 23),  # Third Monday (Jan 23)
+    ]
+    assert result == expected
+
+    # Test case 5: start_date is already a Monday, end_date spans multiple weeks
+    end_date = date(2023, 2, 6)  # A Monday, 5 weeks after Jan 2
+    result = get_week_start_dates(monday, end_date)
+    expected = [
+        date(2023, 1, 2),  # start_date (Mon Jan 2)
+        date(2023, 1, 9),  # Next Monday
+        date(2023, 1, 16),  # Third Monday
+        date(2023, 1, 23),  # Fourth Monday
+        date(2023, 1, 30),  # Fifth Monday
+        date(2023, 2, 6),  # end_date (also a Monday)
+    ]
+    assert result == expected

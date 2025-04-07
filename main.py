@@ -224,6 +224,18 @@ class DateRange:
 
         raise ValueError(f"Invalid view span: {view_span}")
 
+    @staticmethod
+    def get_remaining_days_in_week_in_same_month(start_date: date) -> List[date]:
+        days = []
+        current_date = start_date
+        while current_date.month == start_date.month and current_date.isoweekday() <= 7:
+            days.append(current_date)
+            if current_date.isoweekday() == 7:
+                break
+            current_date += timedelta(days=1)
+
+        return days
+
 
 def load_timesheet(datafile: Optional[str] = None) -> Timesheet:
     if datafile is None:
@@ -630,10 +642,38 @@ def project_summary(view_span: ViewSpans = ViewSpans.WEEK) -> None:
     ts = load_timesheet()
     projects = load_projects()
 
+    for week_start_date in get_week_start_dates(start_date, end_date):
+        _print_project_summary_week(week_start_date, ts, projects)
+        print("")
+
+    if view_span == ViewSpans.MONTH:
+        print("Month total:")
+        # Calculate project times for the entire month
+        project_month_totals: Dict[int, int] = defaultdict(int)
+        for day in ts.get_days(start_date.isoformat(), end_date.isoformat()):
+            for block in day.work_blocks:
+                project_id = block.project_id or 0
+                project_month_totals[project_id] += block.worked_time
+
+        # Sort projects and print totals
+        for project in sorted(
+            [p for p in projects if not p.deleted], key=lambda p: p.name
+        ):
+            if (
+                project.id in project_month_totals
+                and project_month_totals[project.id] > 0
+            ):
+                print(f"  {project.name}: {fmt_mins(project_month_totals[project.id])}")
+
+
+def _print_project_summary_week(
+    start_date: date, ts: Timesheet, projects: Projects
+) -> None:
+    days_to_print = DateRange.get_remaining_days_in_week_in_same_month(start_date)
+
     table = Table()
     table.add_column("Project")
-    for day in range(7):
-        current = start_date + timedelta(days=day)
+    for current in days_to_print:
         table.add_column(f"{current.strftime('%a %d')}")
     table.add_column("Total")
 
@@ -641,7 +681,7 @@ def project_summary(view_span: ViewSpans = ViewSpans.WEEK) -> None:
     project_times: DefaultDict[int, DefaultDict[date, int]] = defaultdict(
         lambda: defaultdict(int)
     )
-    for day in ts.get_days(start_date.isoformat(), end_date.isoformat()):
+    for day in ts.get_days(start_date.isoformat(), days_to_print[-1].isoformat()):
         for block in day.work_blocks:
             if block.project_id:
                 project_times[block.project_id][day.this_date] += block.worked_time
@@ -655,8 +695,7 @@ def project_summary(view_span: ViewSpans = ViewSpans.WEEK) -> None:
             continue
         row = [project.name]
         total = 0
-        for day in range(7):
-            current = start_date + timedelta(days=day)
+        for current in days_to_print:
             mins = project_times[project.id][current]
             total += mins
             row.append(fmt_mins(mins) if mins else "")
@@ -667,8 +706,7 @@ def project_summary(view_span: ViewSpans = ViewSpans.WEEK) -> None:
     # Add total row
     totals = ["Total"]
     grand_total = 0
-    for day in range(7):
-        current = start_date + timedelta(days=day)
+    for current in days_to_print:
         day_total = sum(times[current] for times in project_times.values())
         grand_total += day_total
         totals.append(fmt_mins(day_total) if day_total else "")
@@ -677,6 +715,42 @@ def project_summary(view_span: ViewSpans = ViewSpans.WEEK) -> None:
 
     console.print(f"Week {start_date.isocalendar()[1]}")
     console.print(table)
+
+
+def get_week_start_dates(start_date: date, end_date: date) -> List[date]:
+    """
+    Returns a list containing the start_date and all Mondays in the interval
+    [start_date, end_date].
+
+    Args:
+        start_date: The start of the interval
+        end_date: The end of the interval
+
+    Returns:
+        List of dates containing start_date and all Mondays within the interval
+    """
+    result = [start_date]  # Always include the start_date
+
+    # If start_date is already a Monday, we'll find the next Monday
+    # If not, find the first Monday after start_date
+    days_until_monday = (8 - start_date.isoweekday()) % 7
+
+    # If days_until_monday is 0, it means start_date is a Monday
+    # and we already included it in the result
+    if days_until_monday == 0:
+        # The next Monday is 7 days from the start_date
+        first_monday = start_date + timedelta(days=7)
+    else:
+        # Calculate the first Monday after start_date
+        first_monday = start_date + timedelta(days=days_until_monday)
+
+    # Add all Mondays in the interval
+    current = first_monday
+    while current <= end_date:
+        result.append(current)
+        current += timedelta(days=7)
+
+    return result
 
 
 def prompt_for_project(default_project_id: Optional[int] = None) -> Optional[int]:
