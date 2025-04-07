@@ -228,7 +228,7 @@ class DateRange:
     def get_remaining_days_in_week_in_same_month(start_date: date) -> List[date]:
         days = []
         current_date = start_date
-        while current_date.month == start_date.month and current_date.isoweekday() <= 7:
+        while current_date.month == start_date.month:
             days.append(current_date)
             if current_date.isoweekday() == 7:
                 break
