@@ -1,0 +1,21 @@
+[project]
+name = "worktimer"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.11.7",
+    "python-dotenv>=1.1.1",
+    "typer>=0.16.0",
+]
+
+[dependency-groups]
+dev = [
+    "freezegun>=1.5.2",
+    "pre-commit>=4.2.0",
+    "pytest>=8.4.1",
+    "pytest-cov>=6.2.1",
+    "pytest-mock>=3.14.1",
+    "ruff>=0.8.0",
+]
