@@ -1,55 +1,18 @@
-# Project variables
-PROJECT_NAME := worktimer
-PYTHON := python3
-PIP := pip3
+.PHONY: all check format format-check install test
 
-# Virtual Environment
-VENV := .venv
-VENV_ACTIVATE := $(VENV)/bin/activate
+check:
+	uv run ruff check main.py test_*
 
-.PHONY: all clean test build venv
+format:
+	uv run ruff format main.py test_*
 
-# Default target
-all: clean venv test build
+format-check:
+	uv run ruff format --check main.py test_*
 
-# Clean up
-clean:
-	find . -type f -name '*.pyc' -delete
-	find . -type f -name '*.pyo' -delete
-	find . -type f -name '*~' -delete
-	find . -type d -name '__pycache__' -exec rm -rf {} +
-	rm -rf $(VENV)
-	rm -rf .pytest_cache/
-	rm -rf htmlcov/
-	rm -rf .mypy_cache/
-	rm -rf test_files/
-	find . -type f -name '.coverage' -delete
-	find . -type f -name 'coverage.xml' -delete
+install:
+	uv sync
 
-# Create virtual environment
-venv:
-	test -d $(VENV) || $(PYTHON) -m venv $(VENV)
-	. $(VENV_ACTIVATE) && $(PIP) install --upgrade pip
-	. $(VENV_ACTIVATE) && $(PIP) install -r requirements.txt
-
-# Run tests
 test:
-	. $(VENV_ACTIVATE) && pytest
+	uv run pytest --cov=main --cov-report=html --cov-report=term-missing
 
-# Setup env for dev
-dev: venv
-	. $(VENV_ACTIVATE) && pre-commit autoupdate
-	. $(VENV_ACTIVATE) && [ ! -f config.env ] && echo "mode=dev" > config.env
-
-# Run pre-commit
-pcr:
-	. $(VENV_ACTIVATE) && pre-commit run --all-files
-
-# Help
-help:
-	@echo "make - Run all tasks"
-	@echo "make clean - Clean up the project"
-	@echo "make venv - Set up the virtual environment"
-	@echo "make test - Run tests with pytest"
-	@echo "make dev - Setup a dev environmentß"
-	@echo "make pcr - Run pre-commit hooks"
+all: test format check
