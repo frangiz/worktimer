@@ -504,6 +504,15 @@ wheels = [
 ]
 
 [[package]]
+name = "typed-json-db"
+version = "0.2.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/6a/a6/d687fd9fe86162c9c455233bf5c09d3ad57e6bbb65ff085e15b736b675ca/typed_json_db-0.2.1.tar.gz", hash = "sha256:44da6dd0d409ab971b8a09f132b4c1695f9053552fc6980c02ba112b57d7d084", size = 12883, upload-time = "2025-07-07T21:54:52.639Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/87/e5/5403971e6aa8bec4d545956a6f330a4b7b183e595cd03a126b837f42bc8d/typed_json_db-0.2.1-py3-none-any.whl", hash = "sha256:1244619476e114acf6c10f45845d059108b15f1240b3a17fb7d881519d2dde29", size = 8043, upload-time = "2025-07-07T21:54:51.313Z" },
+]
+
+[[package]]
 name = "typer"
 version = "0.16.0"
 source = { registry = "https://pypi.org/simple" }
@@ -560,6 +569,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "pydantic" },
     { name = "python-dotenv" },
+    { name = "typed-json-db" },
     { name = "typer" },
 ]
 
@@ -577,6 +587,7 @@ dev = [
 requires-dist = [
     { name = "pydantic", specifier = ">=2.11.7" },
     { name = "python-dotenv", specifier = ">=1.1.1" },
+    { name = "typed-json-db", specifier = ">=0.2.1" },
     { name = "typer", specifier = ">=0.16.0" },
 ]
 
