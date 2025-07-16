@@ -36,6 +36,6 @@ repos:
     - id: pytest-cov
       name: pytest
       language: system
-      entry: pytest --cov=. --cov-report html --cov-report xml .
+      entry: python -m pytest --cov=. --cov-report html --cov-report xml .
       types: [python]
       pass_filenames: false
