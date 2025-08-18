@@ -5,8 +5,8 @@ typer==0.16.0
 # test
 pytest==8.4.1
 pytest-cov==6.2.1
-freezegun==1.5.4
+freezegun==1.5.5
 pytest-mock==3.14.1
 
 # formatting
-pre-commit==4.2.0
+pre-commit==4.3.0
