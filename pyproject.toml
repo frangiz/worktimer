@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "pydantic==2.12.3",
+    "pydantic==2.12.4",
     "python-dotenv==1.2.1",
     "typed-json-db==0.3.0",
     "typer==0.20.0",
@@ -14,9 +14,9 @@ dependencies = [
 [dependency-groups]
 dev = [
     "freezegun==1.5.5",
-    "pre-commit==4.3.0",
-    "pytest==8.4.2",
+    "pre-commit==4.4.0",
+    "pytest==9.0.0",
     "pytest-cov==7.0.0",
     "pytest-mock==3.15.1",
-    "ruff==0.14.2",
+    "ruff==0.14.4",
 ]
