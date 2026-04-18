@@ -1,10 +1,10 @@
 python-dotenv==1.2.2
-pydantic==2.12.5
+pydantic==2.13.2
 typer==0.24.1
 
 # test
 pytest==9.0.3
-pytest-cov==7.0.0
+pytest-cov==7.1.0
 freezegun==1.5.5
 pytest-mock==3.15.1
 
