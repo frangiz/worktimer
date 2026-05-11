@@ -1,5 +1,5 @@
 python-dotenv==1.2.2
-pydantic==2.13.3
+pydantic==2.13.4
 typer==0.25.1
 
 # test
